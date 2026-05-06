@@ -1,11 +1,14 @@
-import './index.css'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { SchedulePage } from './pages/SchedulePage'
+import { SharePage } from './pages/SharePage'
 
-function App() {
+export default function App() {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <h1 className="text-2xl font-bold p-4">Volunteer Schedule</h1>
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<SchedulePage />} />
+        <Route path="/share" element={<SharePage />} />
+      </Routes>
+    </BrowserRouter>
   )
 }
-
-export default App
