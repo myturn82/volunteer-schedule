@@ -16,6 +16,8 @@ export type UserRole = 'admin' | 'volunteer';
 export interface Profile {
   id: string;
   name: string;
+  email: string | null;
+  avatar_url: string | null;
   role: UserRole;
   created_at: string;
 }

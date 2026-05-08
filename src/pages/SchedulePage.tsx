@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useSchedule } from '../hooks/useSchedule'
 import { getCellState } from '../utils/cellState'
@@ -27,7 +28,13 @@ export function SchedulePage({ isDark, onToggleDark }: Props) {
   const [showCapacity, setShowCapacity] = useState(false)
   const [modalTarget, setModalTarget] = useState<ModalTarget | null>(null)
 
-  const { profile, signIn, signOut } = useAuth()
+  const navigate = useNavigate()
+  const { profile, loading: authLoading, signIn, signUp, signInWithGoogle, signInWithKakao, signOut } = useAuth()
+
+  useEffect(() => {
+    if (!authLoading && !profile) setShowLogin(true)
+    if (profile) setShowLogin(false)
+  }, [authLoading, profile])
   const { assignments, slotSettings, scheduleRules, dateOverrides, loading, addAssignment, updateAssignment, deleteAssignment, updateSlotCapacity } = useSchedule(year, month)
 
   function prevMonth() {
@@ -61,9 +68,14 @@ export function SchedulePage({ isDark, onToggleDark }: Props) {
               <div className="flex items-center gap-2">
                 <span className="text-sm text-gray-600 dark:text-gray-300">{profile.name} ({profile.role === 'admin' ? '관리자' : '봉사자'})</span>
                 {profile.role === 'admin' && (
-                  <button onClick={() => setShowCapacity(true)} className="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-200">
-                    인원 설정
-                  </button>
+                  <>
+                    <button onClick={() => navigate('/admin')} className="px-2 py-1 text-xs border border-blue-400 text-blue-600 dark:border-blue-500 dark:text-blue-400 rounded hover:bg-blue-50 dark:hover:bg-blue-900/30">
+                      관리자 페이지
+                    </button>
+                    <button onClick={() => setShowCapacity(true)} className="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-200">
+                      인원 설정
+                    </button>
+                  </>
                 )}
                 <button onClick={signOut} className="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-200">
                   로그아웃
@@ -107,7 +119,16 @@ export function SchedulePage({ isDark, onToggleDark }: Props) {
         </div>
       </div>
 
-      {showLogin && <LoginModal onClose={() => setShowLogin(false)} onSignIn={signIn} />}
+      {showLogin && (
+        <LoginModal
+          onClose={() => { if (profile) setShowLogin(false) }}
+          onSignIn={signIn}
+          onSignUp={signUp}
+          onGoogle={signInWithGoogle}
+          onKakao={signInWithKakao}
+          hideCancelButton={!profile}
+        />
+      )}
 
       {modalTarget && selectedCellState && (
         <SlotEditModal
