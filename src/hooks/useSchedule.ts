@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
-import type { Assignment, SlotSetting, ScheduleRule, DateOverride, TimeSlot } from '../types'
+import type { Assignment, SlotSetting, ScheduleRule, DateOverride, TimeSlot, VolunteerType } from '../types'
 
 interface ScheduleData {
   assignments: Assignment[]
@@ -30,7 +30,7 @@ interface AddParams {
 interface UpdateParams {
   volunteer_name?: string
   note?: string
-  volunteer_type?: string
+  volunteer_type?: VolunteerType
   time_sub?: string
   color?: string
 }
@@ -105,9 +105,12 @@ export function useSchedule(year: number, month: number): ScheduleData {
   }, [])
 
   const updateSlotCapacity = useCallback(async (timeSlot: TimeSlot, maxCapacity: number): Promise<string | null> => {
-    const { error } = await supabase.from('slot_settings').update({ max_capacity: maxCapacity }).eq('time_slot', timeSlot)
+    const { error } = await supabase
+      .from('slot_settings')
+      .upsert({ time_slot: timeSlot, max_capacity: maxCapacity }, { onConflict: 'time_slot' })
     if (error) return error.message
-    setSlotSettings(prev => prev.map(s => s.time_slot === timeSlot ? { ...s, max_capacity: maxCapacity } : s))
+    const { data } = await supabase.from('slot_settings').select('*')
+    if (data) setSlotSettings(data)
     return null
   }, [])
 

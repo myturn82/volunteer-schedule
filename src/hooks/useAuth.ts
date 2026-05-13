@@ -6,7 +6,7 @@ interface AuthState {
   profile: Profile | null
   loading: boolean
   signIn: (email: string, password: string) => Promise<string | null>
-  signUp: (email: string, password: string, name: string) => Promise<string | null>
+  signUp: (email: string, password: string, name: string, role: 'volunteer' | '50plus') => Promise<string | null>
   signInWithGoogle: () => Promise<string | null>
   signInWithKakao: () => Promise<string | null>
   signOut: () => Promise<void>
@@ -38,14 +38,17 @@ export function useAuth(): AuthState {
 
   const signIn = useCallback(async (email: string, password: string): Promise<string | null> => {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
-    return error?.message ?? null
+    if (!error) return null
+    if (error.message === 'Email not confirmed') return '이메일 인증이 필요합니다. 가입 시 받은 인증 메일을 확인해 주세요.'
+    if (error.message === 'Invalid login credentials') return '이메일 또는 비밀번호가 올바르지 않습니다.'
+    return error.message
   }, [])
 
-  const signUp = useCallback(async (email: string, password: string, name: string): Promise<string | null> => {
+  const signUp = useCallback(async (email: string, password: string, name: string, role: 'volunteer' | '50plus'): Promise<string | null> => {
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { name } },
+      options: { data: { name, role } },
     })
     return error?.message ?? null
   }, [])

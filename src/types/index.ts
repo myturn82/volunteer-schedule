@@ -4,18 +4,18 @@ export type TimeSlot =
   | '13-14'
   | '14-16'
   | '16-18'
-  | '18-20'
   | '20-22';
 
 export const TIME_SLOTS: TimeSlot[] = [
-  '10-12', '12-13', '13-14', '14-16', '16-18', '18-20', '20-22',
+  '10-12', '12-13', '13-14', '14-16', '16-18', '20-22',
 ];
 
-export type UserRole = 'admin' | 'volunteer' | '50plus';
+export type UserRole = 'admin' | 'team_leader' | 'volunteer' | '50plus';
 export type VolunteerType = 'volunteer' | '50plus' | 'admin_note';
 
 export const ROLE_LABELS: Record<UserRole, string> = {
   admin: '관리자',
+  team_leader: '팀장',
   volunteer: '자원봉사자',
   '50plus': '50플러스활동가',
 };
@@ -23,6 +23,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
 export const TYPE_LABELS: Record<VolunteerType, string> = {
   volunteer: '자원봉사자',
   '50plus': '50플러스활동가',
+  admin_note: '관리자 메모',
 };
 
 export interface Profile {

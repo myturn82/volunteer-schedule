@@ -65,8 +65,10 @@ export function MobileScheduleView({ year, month, assignments, slotSettings, sch
               <div className="flex-1">
                 <TimeSlotCell
                   cellState={cellState}
+                  timeSlot={slot}
                   highlightName={highlightName}
-                  onClick={() => onCellClick({ year, month, day: selectedDay, timeSlot: slot as TimeSlot })}
+                  onClickVolunteer={() => onCellClick({ year, month, day: selectedDay, timeSlot: slot as TimeSlot, volunteerType: 'volunteer' })}
+                  onClickPlus={() => onCellClick({ year, month, day: selectedDay, timeSlot: slot as TimeSlot, volunteerType: '50plus' })}
                 />
               </div>
             </div>

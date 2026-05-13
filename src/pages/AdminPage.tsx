@@ -144,6 +144,8 @@ export function AdminPage() {
                             <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
                               p.role === 'admin'
                                 ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300'
+                                : p.role === 'team_leader'
+                                ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
                                 : p.role === '50plus'
                                 ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
                                 : 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
@@ -161,7 +163,7 @@ export function AdminPage() {
                                 onChange={e => handleRoleToggle(p.id, e.target.value as UserRole)}
                                 className="text-xs border border-gray-300 dark:border-gray-600 rounded px-1.5 py-1 dark:bg-gray-700 dark:text-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-400"
                               >
-                                {(['volunteer', '50plus', 'admin'] as UserRole[]).map(r => (
+                                {(['volunteer', 'team_leader', '50plus', 'admin'] as UserRole[]).map(r => (
                                   <option key={r} value={r}>{ROLE_LABELS[r]}</option>
                                 ))}
                               </select>

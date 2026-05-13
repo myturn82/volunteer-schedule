@@ -1,18 +1,41 @@
+const LEGEND_ITEMS = [
+  {
+    bg: 'bg-white dark:bg-[#1e2028]',
+    border: 'border-[var(--color-border)]',
+    icon: '☀',
+    iconColor: 'text-amber-400',
+    label: '햇님타임 (10~18시)',
+  },
+  {
+    bg: 'bg-pink-50 dark:bg-[#2c1a2e]',
+    border: 'border-pink-200 dark:border-pink-900/60',
+    icon: '★',
+    iconColor: 'text-pink-400',
+    label: '달님타임 (20~22시)',
+  },
+  {
+    bg: 'bg-slate-100 dark:bg-[#191c24]',
+    border: 'border-[var(--color-border)]',
+    icon: '—',
+    iconColor: 'text-[var(--color-text-muted)]',
+    label: 'BREAKTIME',
+  },
+]
+
 export function Legend() {
   return (
-    <div className="flex flex-wrap gap-4 text-xs text-gray-700 dark:text-gray-300 mt-3 mb-1 px-1">
-      <div className="flex items-center gap-1">
-        <span className="inline-block w-4 h-4 rounded bg-pink-100 dark:bg-pink-900 border border-pink-300 dark:border-pink-700" />
-        <span>★ 밤타임 (18~22시)</span>
-      </div>
-      <div className="flex items-center gap-1">
-        <span className="inline-block w-4 h-4 rounded bg-yellow-100 dark:bg-yellow-900 border border-yellow-300 dark:border-yellow-700" />
-        <span>★ 토요일 운영 (10~14시)</span>
-      </div>
-      <div className="flex items-center gap-1">
-        <span className="inline-block w-4 h-4 rounded bg-gray-200 dark:bg-gray-600 border border-gray-300 dark:border-gray-500" />
-        <span>BREAKTIME (12~13시)</span>
-      </div>
+    <div className="flex flex-wrap gap-1.5 mt-3 mb-0.5">
+      {LEGEND_ITEMS.map(({ bg, border, icon, iconColor, label }) => (
+        <div
+          key={label}
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border ${bg} ${border}`}
+        >
+          <span className={`text-[10px] font-bold ${iconColor}`}>{icon}</span>
+          <span className="text-[10px] sm:text-[11px] text-[var(--color-text-secondary)] font-medium whitespace-nowrap">
+            {label}
+          </span>
+        </div>
+      ))}
     </div>
   )
 }

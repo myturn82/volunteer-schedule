@@ -1,41 +1,21 @@
-import html2canvas from 'html2canvas'
-
 interface Props {
-  targetId: string
   year: number
   month: number
 }
 
-export function ExportButton({ targetId, year, month }: Props) {
-  async function handleImageSave() {
-    const el = document.getElementById(targetId)
-    if (!el) return
-    const canvas = await html2canvas(el, { scale: 2 })
-    const link = document.createElement('a')
-    link.download = `volunteer-schedule-${year}-${String(month).padStart(2, '0')}.png`
-    link.href = canvas.toDataURL('image/png')
-    link.click()
-  }
-
+export function ExportButton({ year, month }: Props) {
   function handleShareUrl() {
     const url = `${window.location.origin}/share?year=${year}&month=${month}`
     navigator.clipboard.writeText(url).then(() => alert('공유 URL이 클립보드에 복사되었습니다.\n' + url))
   }
 
   return (
-    <div className="flex gap-2">
-      <button
-        onClick={handleImageSave}
-        className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 dark:text-gray-200 rounded hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-1"
-      >
-        📷 이미지 저장
-      </button>
-      <button
-        onClick={handleShareUrl}
-        className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 dark:text-gray-200 rounded hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-1"
-      >
-        🔗 공유 URL
-      </button>
-    </div>
+    <button
+      onClick={handleShareUrl}
+      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-secondary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+    >
+      <span>🔗</span>
+      <span className="hidden sm:inline">공유</span>
+    </button>
   )
 }
