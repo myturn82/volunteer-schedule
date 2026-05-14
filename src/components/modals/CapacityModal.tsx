@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { TIME_SLOTS } from '../../types'
+import { TIME_SLOTS, DEFAULT_MAX_CAPACITY } from '../../types'
 import type { SlotSetting, TimeSlot } from '../../types'
 
 interface Props {
@@ -44,20 +44,22 @@ export function CapacityModal({ slotSettings, onClose, onUpdate }: Props) {
             </p>
           )}
           <div className="space-y-2">
-            {TIME_SLOTS.filter(s => s !== '12-13').map(slot => {
+            {TIME_SLOTS.map(slot => {
               const setting = slotSettings.find(s => s.time_slot === slot)
               return (
                 <div
                   key={slot}
                   className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-[var(--color-surface-secondary)] border border-[var(--color-border)]"
                 >
-                  <span className="text-sm font-medium text-[var(--color-text-primary)] w-20">{slot}시</span>
+                  <span className="text-sm font-medium text-[var(--color-text-primary)] w-20">
+                    {slot}시{slot === '12-13' && <span className="ml-1 text-[10px] text-[var(--color-text-muted)]">(토)</span>}
+                  </span>
                   <div className="flex items-center gap-2">
                     <input
                       type="number"
                       min={0}
                       max={10}
-                      defaultValue={setting?.max_capacity ?? 2}
+                      defaultValue={setting?.max_capacity ?? DEFAULT_MAX_CAPACITY}
                       disabled={loading === slot}
                       onBlur={e => handleChange(slot as TimeSlot, e.target.value)}
                       className="w-16 border border-[var(--color-border-strong)] rounded-lg px-2 py-1.5 text-sm text-center bg-[var(--color-surface)] text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-500/60 transition-all duration-200"

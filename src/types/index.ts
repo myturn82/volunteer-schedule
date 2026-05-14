@@ -10,6 +10,8 @@ export const TIME_SLOTS: TimeSlot[] = [
   '10-12', '12-13', '13-14', '14-16', '16-18', '20-22',
 ];
 
+export const DEFAULT_MAX_CAPACITY = 2;
+
 export type UserRole = 'admin' | 'team_leader' | 'volunteer' | '50plus';
 export type VolunteerType = 'volunteer' | '50plus' | 'admin_note';
 

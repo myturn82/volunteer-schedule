@@ -20,6 +20,20 @@ const LEGEND_ITEMS = [
     iconColor: 'text-[var(--color-text-muted)]',
     label: 'BREAKTIME',
   },
+  {
+    bg: 'bg-yellow-100 dark:bg-yellow-950/30',
+    border: 'border-yellow-200 dark:border-yellow-900/60',
+    icon: '●',
+    iconColor: 'text-yellow-500',
+    label: '팀장 배정',
+  },
+  {
+    bg: 'bg-blue-50 dark:bg-blue-950/30',
+    border: 'border-blue-200 dark:border-blue-900/60',
+    icon: '토',
+    iconColor: 'text-blue-500',
+    label: '토요일 운영 (10~14시)',
+  },
 ]
 
 export function Legend() {

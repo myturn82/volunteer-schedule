@@ -139,7 +139,13 @@ export function SchedulePage({ isDark, onToggleDark }: Props) {
                 highlightName={highlightName || null}
                 profile={profile}
                 teamLeaderUserIds={teamLeaderUserIds}
-                onCellClick={setModalTarget}
+                onCellClick={target => {
+                  const role = profile?.role
+                  const targetIsSaturday = new Date(target.year, target.month - 1, target.day).getDay() === 6
+                  if (role === 'volunteer' && target.volunteerType !== 'volunteer') return
+                  if (role === '50plus' && target.volunteerType !== '50plus' && !targetIsSaturday) return
+                  setModalTarget(target)
+                }}
                 onHolidayCellClick={profile && (profile.role === 'admin' || profile.role === 'team_leader')
                   ? (day, startHour, endHour) => setHolidayTarget({ day, startHour, endHour })
                   : undefined}
@@ -170,7 +176,7 @@ export function SchedulePage({ isDark, onToggleDark }: Props) {
             year, month, day: modalTarget.day,
             time_slot: modalTarget.timeSlot,
             volunteer_name: name,
-            note: note || undefined,
+            note: note?.trim() || undefined,
             volunteer_type: volunteerType,
             time_sub: timeSub || undefined,
             color: color || undefined,

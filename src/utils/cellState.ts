@@ -1,4 +1,5 @@
 import type { TimeSlot, Assignment, SlotSetting, ScheduleRule, DateOverride, CellState } from '../types'
+import { DEFAULT_MAX_CAPACITY } from '../types'
 
 // 휴관/규칙에 관계없이 항상 운영하는 요일+시간 조합
 function isForceOpen(dayOfWeek: number, timeSlot: TimeSlot): boolean {
@@ -30,7 +31,7 @@ export function getCellState(
       a => a.year === year && a.month === month && a.day === day && a.time_slot === timeSlot
     )
     const setting = slotSettings.find(s => s.time_slot === timeSlot)
-    const maxCapacity = setting?.max_capacity ?? 2
+    const maxCapacity = setting?.max_capacity ?? DEFAULT_MAX_CAPACITY
     return {
       isBreaktime: false,
       isClosed: false,
@@ -61,7 +62,7 @@ export function getCellState(
   )
 
   const setting = slotSettings.find(s => s.time_slot === timeSlot)
-  const maxCapacity = setting?.max_capacity ?? 2
+  const maxCapacity = setting?.max_capacity ?? DEFAULT_MAX_CAPACITY
 
   return {
     isBreaktime: false,

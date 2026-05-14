@@ -6,7 +6,7 @@ interface AuthState {
   profile: Profile | null
   loading: boolean
   signIn: (email: string, password: string) => Promise<string | null>
-  signUp: (email: string, password: string, name: string, role: 'volunteer' | '50plus') => Promise<string | null>
+  signUp: (email: string, password: string, name: string, role: 'volunteer' | '50plus' | 'team_leader') => Promise<string | null>
   signInWithGoogle: () => Promise<string | null>
   signInWithKakao: () => Promise<string | null>
   signOut: () => Promise<void>
@@ -44,13 +44,18 @@ export function useAuth(): AuthState {
     return error.message
   }, [])
 
-  const signUp = useCallback(async (email: string, password: string, name: string, role: 'volunteer' | '50plus'): Promise<string | null> => {
-    const { error } = await supabase.auth.signUp({
+  const signUp = useCallback(async (email: string, password: string, name: string, role: 'volunteer' | '50plus' | 'team_leader'): Promise<string | null> => {
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: { data: { name, role } },
     })
-    return error?.message ?? null
+    if (error) {
+      if (error.message === 'User already registered') return '이미 가입된 이메일입니다.'
+      return error.message
+    }
+    if (data.user?.identities?.length === 0) return '이미 가입된 이메일입니다.'
+    return null
   }, [])
 
   const signInWithGoogle = useCallback(async (): Promise<string | null> => {

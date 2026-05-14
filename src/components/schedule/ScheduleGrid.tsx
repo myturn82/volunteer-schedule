@@ -63,36 +63,23 @@ function computeSlotGroups(
   return groups
 }
 
-type CellMerge = {
-  skip: boolean
-  rowspan: number
-  isHoliday: boolean
-  isBlocked: boolean  // true = CLOSE/holiday merge, false = same-person merge
-  label: string | null
-}
+// ── Merge map types ──────────────────────────────────────────────────────────
 
-function getSlotAssignmentKey(day: number, slot: TimeSlot, assignments: Assignment[]): string {
-  const slotA = assignments.filter(a =>
-    a.day === day && a.time_slot === slot && a.volunteer_type !== 'admin_note'
-  )
-  if (slotA.length === 0) return ''
-  return slotA.map(a => `${a.volunteer_type}:${a.user_id}:${a.time_sub ?? ''}`).sort().join('|')
-}
+type BlockEntry = { skip: boolean; rowspan: number; isHoliday: boolean; label: string | null }
+type ColEntry   = { skip: boolean; rowspan: number }
 
-function buildMergeMap(
+// ── Block merge (holiday / closed sequences) ─────────────────────────────────
+
+function buildBlockMap(
   week: (number | null)[],
-  year: number,
-  month: number,
-  scheduleRules: ScheduleRule[],
-  slotSettings: SlotSetting[],
-  dateOverrides: DateOverride[],
-  assignments: Assignment[]
-): Map<string, CellMerge> {
-  const map = new Map<string, CellMerge>()
+  year: number, month: number,
+  scheduleRules: ScheduleRule[], slotSettings: SlotSetting[],
+  dateOverrides: DateOverride[], assignments: Assignment[]
+): Map<string, BlockEntry> {
+  const map = new Map<string, BlockEntry>()
 
   week.forEach((day, dowIdx) => {
     if (!day) return
-
     const dateKey = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
     const overrideLabel = dateOverrides.find(d => d.date === dateKey)?.label ?? null
 
@@ -109,47 +96,96 @@ function buildMergeMap(
           else break
         }
         const span = j - i
-        map.set(`${dowIdx}-${i}`, { skip: false, rowspan: span, isHoliday: s.isHoliday, isBlocked: true, label: overrideLabel })
+        map.set(`${dowIdx}-${i}`, { skip: false, rowspan: span, isHoliday: s.isHoliday, label: overrideLabel })
         for (let k = i + 1; k < j; k++) {
-          map.set(`${dowIdx}-${k}`, { skip: true, rowspan: 0, isHoliday: false, isBlocked: false, label: null })
+          map.set(`${dowIdx}-${k}`, { skip: true, rowspan: 0, isHoliday: false, label: null })
         }
         i = j
       } else {
-        // 연속 동일 근무자 머지
-        const assignKey = getSlotAssignmentKey(day, slot, assignments)
-        let span = 1
-        if (assignKey) {
-          let j = i + 1
-          while (j < TIME_SLOTS.length) {
-            const ns = getCellState(day, TIME_SLOTS[j] as TimeSlot, year, month, scheduleRules, slotSettings, dateOverrides, assignments)
-            if (ns.isClosed || ns.isHoliday) break
-            if (getSlotAssignmentKey(day, TIME_SLOTS[j] as TimeSlot, assignments) === assignKey) j++
-            else break
-          }
-          span = j - i
-        }
-        map.set(`${dowIdx}-${i}`, { skip: false, rowspan: span, isHoliday: false, isBlocked: false, label: null })
-        for (let k = i + 1; k < i + span; k++) {
-          map.set(`${dowIdx}-${k}`, { skip: true, rowspan: 0, isHoliday: false, isBlocked: false, label: null })
-        }
-        i += span
+        i++
       }
     }
   })
-
   return map
 }
 
-export function ScheduleGrid({ year, month, assignments, slotSettings, scheduleRules, dateOverrides, highlightName, profile, teamLeaderUserIds, onCellClick, onHolidayCellClick }: Props) {
-  const isAdmin = profile?.role === 'admin'
+// ── Column merge (volunteer or 50plus, independently) ────────────────────────
+
+function getVolKey(day: number, slot: TimeSlot, assignments: Assignment[]): string {
+  const slotA = assignments.filter(a =>
+    a.day === day && a.time_slot === slot &&
+    (!a.volunteer_type || a.volunteer_type === 'volunteer')
+  )
+  if (slotA.length === 0) return ''
+  return slotA.map(a => `${a.user_id}:${a.volunteer_name}:${a.note ?? ''}`).sort().join('|')
+}
+
+function getPlusKey(day: number, slot: TimeSlot, assignments: Assignment[]): string {
+  const slotA = assignments.filter(a =>
+    a.day === day && a.time_slot === slot && a.volunteer_type === '50plus'
+  )
+  if (slotA.length === 0) return ''
+  return slotA.map(a => `${a.user_id}:${a.volunteer_name}:${a.note ?? ''}`).sort().join('|')
+}
+
+function buildColMap(
+  week: (number | null)[],
+  year: number, month: number,
+  scheduleRules: ScheduleRule[], slotSettings: SlotSetting[],
+  dateOverrides: DateOverride[], assignments: Assignment[],
+  keyFn: (day: number, slot: TimeSlot, assignments: Assignment[]) => string
+): Map<string, ColEntry> {
+  const map = new Map<string, ColEntry>()
+
+  week.forEach((day, dowIdx) => {
+    if (!day) return
+
+    let i = 0
+    while (i < TIME_SLOTS.length) {
+      const slot = TIME_SLOTS[i] as TimeSlot
+      const s = getCellState(day, slot, year, month, scheduleRules, slotSettings, dateOverrides, assignments)
+
+      if ((s.isClosed || s.isHoliday) && !s.isBreaktime) {
+        // Skip blocked slots — blockMap handles them
+        let j = i + 1
+        while (j < TIME_SLOTS.length) {
+          const ns = getCellState(day, TIME_SLOTS[j] as TimeSlot, year, month, scheduleRules, slotSettings, dateOverrides, assignments)
+          if (ns.isClosed || ns.isHoliday) j++
+          else break
+        }
+        i = j
+        continue
+      }
+
+      if (s.isBreaktime) {
+        map.set(`${dowIdx}-${i}`, { skip: false, rowspan: 1 })
+        i++
+        continue
+      }
+
+      // Each slot rendered independently — no vertical merge
+      map.set(`${dowIdx}-${i}`, { skip: false, rowspan: 1 })
+      i++
+    }
+  })
+  return map
+}
+
+// ── Component ────────────────────────────────────────────────────────────────
+
+export function ScheduleGrid({
+  year, month, assignments, slotSettings, scheduleRules, dateOverrides,
+  highlightName, profile, teamLeaderUserIds, onCellClick, onHolidayCellClick,
+}: Props) {
+  const isAdmin = profile?.role === 'admin' || profile?.role === 'team_leader'
   const weeks = getCalendarWeeks(year, month)
 
   const thBase = 'border border-[var(--color-border-table)] px-0.5 sm:px-2 py-1 text-[9px] sm:text-xs font-semibold text-center'
-  const thTime = `${thBase} bg-[var(--color-surface-secondary)] text-[var(--color-text-secondary)] sticky left-0 z-10 w-9 sm:w-auto whitespace-nowrap`
+  const thTime = `${thBase} bg-[var(--color-surface-secondary)] text-[var(--color-text-secondary)] sticky left-0 z-10 w-9 sm:w-16 whitespace-nowrap`
 
   return (
     <div className="sm:overflow-x-auto">
-      <table className="border-collapse text-sm w-full table-fixed sm:table-auto">
+      <table className="border-collapse text-sm w-full table-fixed">
         <thead>
           <tr>
             <th className={thTime}>
@@ -159,7 +195,8 @@ export function ScheduleGrid({ year, month, assignments, slotSettings, scheduleR
             {DOW_ORDER.map((dow, i) => (
               <th
                 key={dow}
-                className={`${thBase} sm:min-w-[5rem]
+                colSpan={dow === 6 ? 1 : 2}
+                className={`${thBase}
                   ${dow === 0
                     ? 'text-red-500 bg-red-50/70 dark:bg-red-950/40'
                     : dow === 6
@@ -173,7 +210,9 @@ export function ScheduleGrid({ year, month, assignments, slotSettings, scheduleR
         </thead>
         <tbody>
           {weeks.map((week, weekIdx) => {
-            const mergeMap = buildMergeMap(week, year, month, scheduleRules, slotSettings, dateOverrides, assignments)
+            const blockMap = buildBlockMap(week, year, month, scheduleRules, slotSettings, dateOverrides, assignments)
+            const volMap   = buildColMap(week, year, month, scheduleRules, slotSettings, dateOverrides, assignments, getVolKey)
+            const plusMap  = buildColMap(week, year, month, scheduleRules, slotSettings, dateOverrides, assignments, getPlusKey)
 
             return (
               <Fragment key={weekIdx}>
@@ -184,9 +223,11 @@ export function ScheduleGrid({ year, month, assignments, slotSettings, scheduleR
                   </td>
                   {week.map((day, dowIdx) => {
                     const dow = DOW_ORDER[dowIdx]
+                    const isSat = dow === 6
                     return (
                       <td
                         key={dowIdx}
+                        colSpan={isSat ? 1 : 2}
                         className={`border-t-2 border-[var(--color-border-strong)] border-x border-b border-[var(--color-border-table)] text-center text-[9px] sm:text-xs font-bold py-1
                           ${!day
                             ? 'bg-[var(--color-surface-secondary)] text-[var(--color-text-muted)]'
@@ -210,29 +251,31 @@ export function ScheduleGrid({ year, month, assignments, slotSettings, scheduleR
                       <span className="hidden sm:inline whitespace-nowrap">{slot}</span>
                     </td>
                     {week.map((day, dowIdx) => {
+                      const dow = DOW_ORDER[dowIdx]
+                      const isSat = dow === 6
+
                       if (!day) {
                         return (
-                          <td
-                            key={dowIdx}
-                            className="border border-[var(--color-border-table)] bg-[var(--color-surface-secondary)]"
-                          />
+                          <Fragment key={dowIdx}>
+                            <td className="border border-[var(--color-border-table)] bg-[var(--color-surface-secondary)]" />
+                            {!isSat && <td className="border border-[var(--color-border-table)] bg-[var(--color-surface-secondary)]" />}
+                          </Fragment>
                         )
                       }
 
-                      const merge = mergeMap.get(`${dowIdx}-${slotIdx}`)
-                      if (!merge || merge.skip) return null
+                      const blockMerge = blockMap.get(`${dowIdx}-${slotIdx}`)
 
-                      // CLOSE / 휴관 머지 셀 — admin_note 기반 색상 분할
-                      if (merge.isBlocked) {
-                        const dayNotes = assignments.filter(
-                          a => a.day === day && a.volunteer_type === 'admin_note'
-                        )
-                        const coveredSlots = TIME_SLOTS.slice(slotIdx, slotIdx + merge.rowspan) as TimeSlot[]
+                      // Blocked (holiday / closed) — spans both columns
+                      if (blockMerge) {
+                        if (blockMerge.skip) return null
+                        const dayNotes = assignments.filter(a => a.day === day && a.volunteer_type === 'admin_note')
+                        const coveredSlots = TIME_SLOTS.slice(slotIdx, slotIdx + blockMerge.rowspan) as TimeSlot[]
                         const slotGroups = computeSlotGroups(dayNotes, coveredSlots)
                         return (
                           <td
                             key={dowIdx}
-                            rowSpan={merge.rowspan}
+                            colSpan={isSat ? 1 : 2}
+                            rowSpan={blockMerge.rowspan}
                             className="border border-[var(--color-border-table)] p-0 bg-schedule-close"
                             style={{ height: '1px' }}
                           >
@@ -254,13 +297,13 @@ export function ScheduleGrid({ year, month, assignments, slotSettings, scheduleR
                                   {!group.note ? (
                                     <>
                                       <span className="sm:hidden text-[9px] text-[var(--color-text-muted)] font-medium">
-                                        {merge.isHoliday ? '휴관' : '✕'}
+                                        {blockMerge.isHoliday ? '휴관' : '✕'}
                                       </span>
                                       <span className="hidden sm:block text-[10px] text-[var(--color-text-muted)] font-medium">
-                                        {merge.isHoliday ? '휴관' : 'CLOSE'}
+                                        {blockMerge.isHoliday ? '휴관' : 'CLOSE'}
                                       </span>
-                                      {gi === 0 && merge.label && (
-                                        <span className="text-[8px] sm:text-[10px] text-[var(--color-text-muted)] leading-tight break-words text-center w-full">{merge.label}</span>
+                                      {gi === 0 && blockMerge.label && (
+                                        <span className="text-[8px] sm:text-[10px] text-[var(--color-text-muted)] leading-tight break-words text-center w-full">{blockMerge.label}</span>
                                       )}
                                       {isAdmin && onHolidayCellClick && (
                                         <span className="hidden sm:block text-[9px] text-[var(--color-text-muted)] mt-0.5">+ 비고</span>
@@ -268,11 +311,10 @@ export function ScheduleGrid({ year, month, assignments, slotSettings, scheduleR
                                     </>
                                   ) : (
                                     <>
-                                      <span className="hidden sm:block text-[10px] font-semibold text-[var(--color-text-secondary)] leading-tight">
+                                      <span className="text-[8px] sm:text-[10px] font-semibold text-[var(--color-text-secondary)] leading-tight">
                                         {group.note.time_sub ? (() => { const [s, e] = parseTimeSub(group.note.time_sub!); return `${s}~${e}시` })() : ''}
                                       </span>
-                                      <span className="hidden sm:block text-[10px] text-[var(--color-text-secondary)] leading-tight break-all">{group.note.note}</span>
-                                      <span className="sm:hidden w-2 h-2 rounded-full bg-[var(--color-text-muted)]/40 block" />
+                                      <span className="text-[8px] sm:text-[10px] text-[var(--color-text-secondary)] leading-tight break-all text-center">{group.note.note}</span>
                                     </>
                                   )}
                                 </div>
@@ -282,24 +324,46 @@ export function ScheduleGrid({ year, month, assignments, slotSettings, scheduleR
                         )
                       }
 
-                      // 일반 셀 — 동일인 연속이면 rowspan 적용
+                      // Regular open cell — vol and plus merge independently
+                      const volMerge  = volMap.get(`${dowIdx}-${slotIdx}`)  ?? { skip: false, rowspan: 1 }
+                      const plusMerge = plusMap.get(`${dowIdx}-${slotIdx}`) ?? { skip: false, rowspan: 1 }
                       const cellState = getCellState(day, slot as TimeSlot, year, month, scheduleRules, slotSettings, dateOverrides, assignments)
+
                       return (
-                        <td
-                          key={dowIdx}
-                          rowSpan={merge.rowspan > 1 ? merge.rowspan : undefined}
-                          className="border border-[var(--color-border-table)] p-0"
-                          style={{ height: '1px' }}
-                        >
-                          <TimeSlotCell
-                            cellState={cellState}
-                            timeSlot={slot}
-                            highlightName={highlightName}
-                            teamLeaderUserIds={teamLeaderUserIds}
-                            onClickVolunteer={() => onCellClick({ year, month, day, timeSlot: slot as TimeSlot, volunteerType: 'volunteer' })}
-                            onClickPlus={() => onCellClick({ year, month, day, timeSlot: slot as TimeSlot, volunteerType: '50plus' })}
-                          />
-                        </td>
+                        <Fragment key={dowIdx}>
+                          {!volMerge.skip && (
+                            <td
+                              rowSpan={volMerge.rowspan > 1 ? volMerge.rowspan : undefined}
+                              className="border border-[var(--color-border-table)] p-0"
+                              style={{ height: '1px' }}
+                            >
+                              <TimeSlotCell
+                                cellState={cellState}
+                                timeSlot={slot}
+                                colType="vol"
+                                onClick={() => onCellClick({ year, month, day, timeSlot: slot as TimeSlot, volunteerType: 'volunteer' })}
+                                highlightName={highlightName}
+                                teamLeaderUserIds={teamLeaderUserIds}
+                              />
+                            </td>
+                          )}
+                          {!isSat && !plusMerge.skip && (
+                            <td
+                              rowSpan={plusMerge.rowspan > 1 ? plusMerge.rowspan : undefined}
+                              className="border border-[var(--color-border-table)] p-0"
+                              style={{ height: '1px' }}
+                            >
+                              <TimeSlotCell
+                                cellState={cellState}
+                                timeSlot={slot}
+                                colType="plus"
+                                onClick={() => onCellClick({ year, month, day, timeSlot: slot as TimeSlot, volunteerType: '50plus' })}
+                                highlightName={highlightName}
+                                teamLeaderUserIds={teamLeaderUserIds}
+                              />
+                            </td>
+                          )}
+                        </Fragment>
                       )
                     })}
                   </tr>

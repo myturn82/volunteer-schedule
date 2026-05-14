@@ -47,20 +47,16 @@ export function SlotEditModal({ target, cellState, profile, onClose, onAdd, onUp
   const isSaturday = new Date(year, month - 1, day).getDay() === 6
 
   const [volunteerType, setVolunteerType] = useState<VolunteerType>(
-    isAdmin ? (isSaturday && defaultType === '50plus' ? 'volunteer' : defaultType) : profileType
+    isAdmin ? defaultType : profileType
   )
   const timeSubOptions = getTimeSubOptions(timeSlot)
-  const [timeSub, setTimeSub] = useState<string | null>(null)
+  const defaultTimeSub = timeSubOptions ? timeSubOptions[timeSubOptions.length - 1].value : null
+  const [timeSub, setTimeSub] = useState<string | null>(defaultTimeSub)
   const [selectedUserId, setSelectedUserId] = useState<string>(isAdmin ? '' : (profile?.id ?? ''))
   const [note, setNote] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-
-  // 직접 입력 모드 (팀장 전용)
-  const [isDirectInput, setIsDirectInput] = useState(false)
-  const [directName, setDirectName] = useState('')
-  const [directVolunteerType] = useState<'volunteer' | '50plus'>(defaultType === '50plus' ? '50plus' : 'volunteer')
 
   const { profiles } = useProfiles()
 
@@ -91,8 +87,17 @@ export function SlotEditModal({ target, cellState, profile, onClose, onAdd, onUp
         })
     : []
 
+  const totalTypeProfiles = isAdmin
+    ? isTeamLeader
+      ? defaultType === '50plus'
+        ? profiles.filter(p => p.role === '50plus')
+        : profiles.filter(p => p.role === 'volunteer' || p.role === 'team_leader')
+      : volunteerType === '50plus'
+        ? profiles.filter(p => p.role === '50plus')
+        : profiles.filter(p => p.role === 'volunteer' || p.role === 'team_leader')
+    : []
+
   function startEdit(a: Assignment) {
-    setIsDirectInput(false)
     setEditingId(a.id)
     setSelectedUserId(a.user_id)
     setNote(a.note ?? '')
@@ -104,20 +109,10 @@ export function SlotEditModal({ target, cellState, profile, onClose, onAdd, onUp
     setEditingId(null)
     setSelectedUserId(isAdmin ? '' : (profile?.id ?? ''))
     setNote('')
-    setTimeSub(null)
+    setTimeSub(defaultTimeSub)
   }
 
   async function handleAdd() {
-    if (isTeamLeader && isDirectInput) {
-      if (!directName.trim()) { setError('이름을 입력해주세요'); return }
-      setLoading(true)
-      const err = await onAdd(directName.trim(), note.trim(), directVolunteerType, timeSub, undefined, undefined)
-      setLoading(false)
-      if (err) setError(err)
-      else { setDirectName(''); setNote(''); setTimeSub(null); setError(null) }
-      return
-    }
-
     if (!selectedProfile) return
     if (!isAdmin && cellState.isFull) { setError('정원이 마감되었습니다'); return }
     if (isAdmin && cellState.isFull && !window.confirm(`정원(${cellState.maxCapacity}명)이 초과됩니다. 계속 추가하시겠습니까?`)) return
@@ -135,7 +130,7 @@ export function SlotEditModal({ target, cellState, profile, onClose, onAdd, onUp
     else {
       setSelectedUserId(isAdmin ? '' : (profile?.id ?? ''))
       setNote('')
-      setTimeSub(null)
+      setTimeSub(defaultTimeSub)
     }
   }
 
@@ -155,19 +150,9 @@ export function SlotEditModal({ target, cellState, profile, onClose, onAdd, onUp
     if (err) setError(err)
   }
 
-  const isAddDisabled = loading || (
-    isTeamLeader && isDirectInput && !editingId
-      ? !directName.trim()
-      : !selectedUserId
-  )
+  const isAddDisabled = loading || !selectedUserId
 
   const inputClass = 'w-full border border-[var(--color-border-strong)] rounded-xl px-3 py-2.5 text-sm bg-[var(--color-surface-secondary)] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-500/60 transition-all duration-200'
-  const toggleBtn = (active: boolean) =>
-    `flex-1 py-1.5 text-xs font-semibold rounded-lg border transition-all duration-200 ${
-      active
-        ? 'bg-[var(--color-brand-primary)] text-white border-[var(--color-brand-primary)]'
-        : 'border-[var(--color-border-strong)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]'
-    }`
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -195,8 +180,7 @@ export function SlotEditModal({ target, cellState, profile, onClose, onAdd, onUp
           <div className="flex border-b border-[var(--color-border)] px-2">
             {(['volunteer', '50plus'] as VolunteerType[]).map(t => {
               const disabledByRole = !isAdmin && profileType !== t
-              const disabledBySaturday = isSaturday && t === '50plus'
-              const isDisabled = disabledByRole || disabledBySaturday
+              const isDisabled = disabledByRole
               return (
                 <button
                   key={t}
@@ -213,7 +197,7 @@ export function SlotEditModal({ target, cellState, profile, onClose, onAdd, onUp
                       : 'border-transparent text-[var(--color-text-muted)]'}
                     ${isDisabled ? 'opacity-40 cursor-not-allowed' : 'hover:text-[var(--color-text-secondary)]'}`}
                 >
-                  {TYPE_LABELS[t]}{disabledBySaturday ? ' (토요일 제외)' : ''}
+                  {TYPE_LABELS[t]}
                 </button>
               )
             })}
@@ -281,50 +265,29 @@ export function SlotEditModal({ target, cellState, profile, onClose, onAdd, onUp
               {/* Person selector */}
               {isAdmin ? (
                 <div className="space-y-2">
-                  {/* 팀장: 회원선택 / 직접입력 토글 (추가 모드만) */}
-                  {isTeamLeader && !editingId && (
-                    <div className="flex gap-1.5">
-                      <button onClick={() => { setIsDirectInput(false); setDirectName('') }} className={toggleBtn(!isDirectInput)}>
-                        회원 선택
-                      </button>
-                      <button onClick={() => { setIsDirectInput(true); setSelectedUserId('') }} className={toggleBtn(isDirectInput)}>
-                        직접 입력
-                      </button>
-                    </div>
-                  )}
-
-                  {isTeamLeader && isDirectInput && !editingId ? (
-                    /* 직접 입력 모드 — 유형은 클릭한 컬럼으로 고정 */
-                    <input
-                      value={directName}
-                      onChange={e => setDirectName(e.target.value)}
-                      placeholder={`${defaultType === '50plus' ? '50플러스활동가' : '봉사자'} 이름 입력`}
-                      className={inputClass}
-                    />
-                  ) : (
-                    /* 회원 선택 드롭다운 */
-                    <div>
-                      <p className="text-xs font-medium text-[var(--color-text-muted)] mb-2">봉사자 선택</p>
-                      {selectableProfiles.length === 0 ? (
-                        <p className="text-xs text-[var(--color-text-muted)] py-2 text-center">
-                          해당 유형으로 가입된 회원이 없습니다
-                        </p>
-                      ) : (
-                        <select
-                          value={selectedUserId}
-                          onChange={e => setSelectedUserId(e.target.value)}
-                          className={inputClass}
-                        >
-                          <option value="">-- 봉사자를 선택하세요 --</option>
-                          {selectableProfiles.map(p => (
-                            <option key={p.id} value={p.id}>
-                              {p.name} [{getRoleLabel(p.role)}]
-                            </option>
-                          ))}
-                        </select>
-                      )}
-                    </div>
-                  )}
+                  <div>
+                    <p className="text-xs font-medium text-[var(--color-text-muted)] mb-2">봉사자 선택</p>
+                    {selectableProfiles.length === 0 ? (
+                      <p className="text-xs text-[var(--color-text-muted)] py-2 text-center">
+                        {totalTypeProfiles.length === 0
+                          ? '해당 유형으로 가입된 회원이 없습니다'
+                          : '모든 회원이 이미 배정되어 있습니다'}
+                      </p>
+                    ) : (
+                      <select
+                        value={selectedUserId}
+                        onChange={e => setSelectedUserId(e.target.value)}
+                        className={inputClass}
+                      >
+                        <option value="">-- 봉사자를 선택하세요 --</option>
+                        {selectableProfiles.map(p => (
+                          <option key={p.id} value={p.id}>
+                            {p.name} [{getRoleLabel(p.role)}]
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <div className="px-3 py-2.5 rounded-xl bg-[var(--color-surface-secondary)] border border-[var(--color-border)] text-sm text-[var(--color-text-primary)] font-medium">
