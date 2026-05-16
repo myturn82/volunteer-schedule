@@ -266,7 +266,6 @@ export function AdminPage() {
     const err = await addRole(newRoleName.trim(), newRoleSplitCell, newRoleRequiresCustomerInfo)
     if (err) { msg(err, true); return }
     setNewRoleName('')
-    setNewRoleIsManager(false)
     setNewRoleSplitCell(false)
     setNewRoleRequiresCustomerInfo(false)
   }
