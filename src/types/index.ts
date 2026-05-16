@@ -62,7 +62,6 @@ export interface TenantRole {
   id: string;
   tenant_id: string;
   name: string;
-  is_manager: boolean;
   split_cell: boolean;
   requires_customer_info: boolean;
   display_order: number;

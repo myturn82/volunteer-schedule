@@ -69,7 +69,6 @@ export function AdminPage() {
 
   // Roles tab
   const [newRoleName, setNewRoleName] = useState('')
-  const [newRoleIsManager, setNewRoleIsManager] = useState(false)
   const [newRoleSplitCell, setNewRoleSplitCell] = useState(false)
   const [newRoleRequiresCustomerInfo, setNewRoleRequiresCustomerInfo] = useState(false)
 
@@ -264,7 +263,7 @@ export function AdminPage() {
   async function handleAddRole(e: React.FormEvent) {
     e.preventDefault()
     if (!newRoleName.trim()) return
-    const err = await addRole(newRoleName.trim(), newRoleIsManager, newRoleSplitCell, newRoleRequiresCustomerInfo)
+    const err = await addRole(newRoleName.trim(), newRoleSplitCell, newRoleRequiresCustomerInfo)
     if (err) { msg(err, true); return }
     setNewRoleName('')
     setNewRoleIsManager(false)
@@ -557,7 +556,6 @@ export function AdminPage() {
                       <thead>
                         <tr className="bg-gray-50 dark:bg-gray-700/50 border-b dark:border-gray-700">
                           <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400">역할명</th>
-                          <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400">스케줄 관리</th>
                           <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400">셀 분리</th>
                           <th className="px-4 py-3"></th>
                         </tr>
@@ -566,11 +564,6 @@ export function AdminPage() {
                         {roles.map(r => (
                           <tr key={r.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
                             <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">{r.name}</td>
-                            <td className="px-4 py-3">
-                              <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${r.is_manager ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'}`}>
-                                {r.is_manager ? '가능' : '불가'}
-                              </span>
-                            </td>
                             <td className="px-4 py-3">
                               <button
                                 onClick={async () => {
@@ -611,11 +604,6 @@ export function AdminPage() {
                     <input type="text" value={newRoleName} onChange={e => setNewRoleName(e.target.value)}
                       placeholder="예: 팀장" className={inputCls + ' w-full'} required />
                   </div>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" checked={newRoleIsManager} onChange={e => setNewRoleIsManager(e.target.checked)}
-                      className="rounded border-gray-300 text-blue-600" />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">스케줄 관리 가능</span>
-                  </label>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" checked={newRoleSplitCell} onChange={e => setNewRoleSplitCell(e.target.checked)}
                       className="rounded border-gray-300 text-blue-600" />
