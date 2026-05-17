@@ -294,10 +294,10 @@ export function ScheduleGrid({
                             key={dowIdx}
                             colSpan={isSplitMode ? splitCount : (isSat ? 1 : 2)}
                             rowSpan={blockMerge.rowspan}
-                            className="border border-[var(--color-border-table)] p-0 bg-schedule-close"
+                            className="border border-[var(--color-border-table)] p-0 bg-schedule-close text-center"
                             style={{ height: '1px' }}
                           >
-                            <div className="flex flex-col h-full w-full">
+                            <div className="flex flex-col h-full w-full items-center">
                               {slotGroups.map((group, gi) => (
                                 <div
                                   key={gi}
