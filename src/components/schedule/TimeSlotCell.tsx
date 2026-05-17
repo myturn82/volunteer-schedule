@@ -73,8 +73,8 @@ export function TimeSlotCell({ cellState, timeSlot, colType, onClick, highlightN
     if (colType === 'plus') return <div className={`h-full ${cellMinH} bg-schedule-breaktime`} />
     return (
       <div className={`h-full ${cellMinH} bg-schedule-breaktime flex items-center justify-center`}>
-        <span className="sm:hidden text-[8px] text-[var(--color-text-muted)] font-medium">BR</span>
-        <span className="hidden sm:inline text-[9px] text-[var(--color-text-muted)] font-medium tracking-widest uppercase">Break</span>
+        <span className="sm:hidden text-[8px] text-[var(--color-text-muted)] font-medium">✕</span>
+        <span className="hidden sm:inline text-[9px] text-[var(--color-text-muted)] font-medium">CLOSE</span>
       </div>
     )
   }
