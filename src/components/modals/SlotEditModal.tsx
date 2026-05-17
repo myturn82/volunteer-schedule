@@ -138,6 +138,7 @@ export function SlotEditModal({ target, cellState, profile, splitRoles = [], isS
   async function handleAdd() {
     if (isSplitMode) {
       if (!freeformName.trim()) return
+      if (!freeformPhone.trim()) { setError('연락처를 입력해주세요'); return }
       if (cellState.isFull && !window.confirm(`정원(${cellState.maxCapacity}명)이 초과됩니다. 계속 추가하시겠습니까?`)) return
       setLoading(true)
       const err = await onAdd(
@@ -192,6 +193,7 @@ export function SlotEditModal({ target, cellState, profile, splitRoles = [], isS
 
     if (isSplitMode) {
       if (!freeformName.trim()) return
+      if (!freeformPhone.trim()) { setError('연락처를 입력해주세요'); return }
       setLoading(true)
       const err = await onUpdate(
         editingId,
@@ -377,7 +379,7 @@ export function SlotEditModal({ target, cellState, profile, splitRoles = [], isS
                   <input
                     value={freeformPhone}
                     onChange={e => setFreeformPhone(e.target.value)}
-                    placeholder="연락처 (선택)"
+                    placeholder="연락처 (필수)"
                     className={inputClass}
                   />
                   <input

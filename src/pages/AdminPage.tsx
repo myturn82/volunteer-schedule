@@ -663,7 +663,7 @@ export function AdminPage() {
                                     if (err) msg(err, true)
                                   }}
                                     className={`px-2.5 py-0.5 rounded text-xs font-medium transition-colors ${rule.is_open ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 hover:bg-green-200' : 'bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-600'}`}>
-                                    {rule.is_open ? '운영' : '닫힘'}
+                                    {rule.is_open ? '운영' : '미운영'}
                                   </button>
                                 ) : <span className="text-gray-300 dark:text-gray-600">-</span>}
                               </td>
