@@ -71,6 +71,8 @@ export function AdminPage() {
   const [newRoleName, setNewRoleName] = useState('')
   const [newRoleSplitCell, setNewRoleSplitCell] = useState(false)
   const [newRoleRequiresCustomerInfo, setNewRoleRequiresCustomerInfo] = useState(false)
+  const [editingRoleId, setEditingRoleId] = useState<string | null>(null)
+  const [editRoleName, setEditRoleName] = useState('')
 
   // Dates tab
   const [dateForm, setDateForm] = useState({ date: '', type: 'holiday' as 'holiday' | 'special', label: '' })
@@ -562,7 +564,47 @@ export function AdminPage() {
                       <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                         {roles.map(r => (
                           <tr key={r.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
-                            <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">{r.name}</td>
+                            <td className="px-4 py-3">
+                              {editingRoleId === r.id ? (
+                                <div className="flex items-center gap-1.5">
+                                  <input
+                                    value={editRoleName}
+                                    onChange={e => setEditRoleName(e.target.value)}
+                                    onKeyDown={async e => {
+                                      if (e.key === 'Enter') {
+                                        if (!editRoleName.trim()) return
+                                        const err = await updateRole(r.id, { name: editRoleName.trim() })
+                                        if (err) msg(err, true)
+                                        else setEditingRoleId(null)
+                                      }
+                                      if (e.key === 'Escape') setEditingRoleId(null)
+                                    }}
+                                    className={inputCls + ' w-32 text-sm py-1'}
+                                    autoFocus
+                                  />
+                                  <button type="button"
+                                    onClick={async () => {
+                                      if (!editRoleName.trim()) return
+                                      const err = await updateRole(r.id, { name: editRoleName.trim() })
+                                      if (err) msg(err, true)
+                                      else setEditingRoleId(null)
+                                    }}
+                                    className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700">
+                                    저장
+                                  </button>
+                                  <button type="button" onClick={() => setEditingRoleId(null)}
+                                    className="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-100 dark:hover:bg-gray-700">
+                                    취소
+                                  </button>
+                                </div>
+                              ) : (
+                                <button type="button"
+                                  onClick={() => { setEditingRoleId(r.id); setEditRoleName(r.name) }}
+                                  className="font-medium text-gray-900 dark:text-gray-100 hover:text-blue-600 text-left">
+                                  {r.name}
+                                </button>
+                              )}
+                            </td>
                             <td className="px-4 py-3">
                               <button
                                 onClick={async () => {
