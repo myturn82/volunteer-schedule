@@ -132,13 +132,7 @@ export function TimeSlotCell({ cellState, timeSlot, colType, onClick, highlightN
   if (colType === 'vol') {
     const bgClass = hasTeamLeaderInVol
       ? 'bg-yellow-100 hover:bg-yellow-200/80 dark:bg-yellow-950/30 dark:hover:bg-yellow-900/40'
-      : isNightShift
-      ? 'bg-schedule-night hover:bg-schedule-night-hover'
       : 'bg-[var(--color-surface)] hover:bg-blue-50/50 dark:hover:bg-blue-950/20'
-
-    const shiftDot = isNightShift
-      ? <span className="text-pink-400 text-[8px] sm:text-[9px] font-bold">★</span>
-      : null
 
     const shouldSplit = slotHours.length === 2 && saturdayAssignments.some(a => a.time_sub && !a.time_sub.includes('~'))
 
@@ -158,7 +152,7 @@ export function TimeSlotCell({ cellState, timeSlot, colType, onClick, highlightN
                 className={`flex-1 min-h-[1rem] flex flex-col items-center justify-center px-0.5 transition-all duration-150 active:scale-[0.98] ${hourBg}`}
                 style={isSaturdayShift && hourPlus.length > 0 && !hourHasLeader ? { backgroundColor: PLUS_BG } : undefined}
               >
-                {shiftDot}
+
                 <NameList assignments={hourVol} highlightName={highlightName} teamLeaderUserIds={teamLeaderUserIds} />
                 {hourFull && (
                   <span className="text-[7px] sm:text-[10px] text-red-500 font-semibold bg-red-50 dark:bg-red-950/30 px-1 rounded-sm leading-tight">마감</span>
