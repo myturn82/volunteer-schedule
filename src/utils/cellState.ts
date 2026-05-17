@@ -1,5 +1,6 @@
 import type { TimeSlot, Assignment, SlotSetting, ScheduleRule, DateOverride, CellState } from '../types'
 import { DEFAULT_MAX_CAPACITY } from '../types'
+import { isKoreanHoliday } from './koreanHolidays'
 
 export function getCellState(
   day: number,
@@ -18,8 +19,10 @@ export function getCellState(
   const override = dateOverrides.find(d => d.date === dateStr)
   const rule = scheduleRules.find(r => r.day_of_week === dayOfWeek && r.time_slot === timeSlot)
 
-  // Sunday is treated as holiday only when no explicit open rule exists for it
-  const isHoliday = override?.is_holiday === true || (dayOfWeek === 0 && rule?.is_open !== true)
+  // Holiday: explicit override, Sunday without open rule, or Korean public holiday (when no override exists)
+  const isHoliday = override?.is_holiday === true
+    || (dayOfWeek === 0 && rule?.is_open !== true)
+    || (override === undefined && isKoreanHoliday(dateStr))
 
   // Breaktime: slot is closed by rule on a non-holiday day (e.g. lunch break)
   const isClosedByRule = rule ? !rule.is_open : true
