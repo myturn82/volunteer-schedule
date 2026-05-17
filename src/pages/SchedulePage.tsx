@@ -47,7 +47,7 @@ export function SchedulePage({ isDark, onToggleDark }: Props) {
   const teamLeaderUserIds = new Set(profiles.filter(p => p.role === 'team_leader').map(p => p.id))
   const { roles: tenantRoles } = useTenantRoles(tenant?.id ?? '')
   const splitRoles = tenantRoles.filter(r => r.split_cell)
-  const isSplitMode = splitRoles.length > 0
+  const isSplitMode = tenant?.settings?.tenant_mode === '직접입력' && splitRoles.length > 0
 
   function prevMonth() {
     if (month === 1) { setYear(y => y - 1); setMonth(12) }
