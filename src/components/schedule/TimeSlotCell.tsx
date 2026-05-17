@@ -62,7 +62,7 @@ function NameList({ assignments, highlightName, small, teamLeaderUserIds }: {
 }
 
 export function TimeSlotCell({ cellState, timeSlot, colType, onClick, highlightName, teamLeaderUserIds, roleId }: Props) {
-  const { isBreaktime, isClosed, isHoliday, isNightShift, isSaturdayShift, assignments, isFull } = cellState
+  const { isBreaktime, isClosed, isHoliday, isSaturdayShift, assignments, isFull } = cellState
   const PLUS_BG = '#FED7AA'
   const [slotStart, slotEnd] = timeSlot.split('-').map(Number)
   const cellMinH = slotEnd - slotStart === 1
@@ -169,7 +169,6 @@ export function TimeSlotCell({ cellState, timeSlot, colType, onClick, highlightN
         className={`w-full ${cellMinH} flex flex-col items-center justify-center px-0.5 transition-all duration-150 active:scale-[0.98] ${bgClass}`}
         style={isSaturdayShift && plusAssignments.length > 0 && !hasTeamLeaderInVol ? { backgroundColor: PLUS_BG } : undefined}
       >
-        {shiftDot}
         <NameList assignments={saturdayAssignments} highlightName={highlightName} teamLeaderUserIds={teamLeaderUserIds} />
         {isFull && saturdayAssignments.length > 0 && (
           <span className="text-[7px] sm:text-[10px] text-red-500 font-semibold mt-0.5 bg-red-50 dark:bg-red-950/30 px-1 rounded-sm leading-tight">마감</span>
