@@ -10,6 +10,7 @@ import type { TimeSlot, Tenant, TenantAccessRole, LegendItem, LegendColor } from
 import { LEGEND_COLOR_STYLES } from '../components/schedule/Legend'
 
 const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토']
+const HEX_COLOR_RE = /^#[0-9A-Fa-f]{6}$/
 
 function makeTimeOpt(halfHours: number) {
   const h = Math.floor(halfHours / 2)
@@ -264,8 +265,13 @@ export function AdminPage() {
 
   async function handleAddRole(e: React.FormEvent) {
     e.preventDefault()
-    if (!newRoleName.trim()) return
-    const err = await addRole(newRoleName.trim(), newRoleSplitCell, newRoleRequiresCustomerInfo)
+    const trimmedName = newRoleName.trim()
+    if (!trimmedName) return
+    if (roles.some(r => r.name === trimmedName)) {
+      msg('같은 이름의 역할이 이미 존재합니다.', true)
+      return
+    }
+    const err = await addRole(trimmedName, newRoleSplitCell, newRoleRequiresCustomerInfo)
     if (err) { msg(err, true); return }
     setNewRoleName('')
     setNewRoleSplitCell(false)
@@ -275,6 +281,11 @@ export function AdminPage() {
   async function handleDateSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!dateForm.date) { msg('날짜를 선택해주세요.', true); return }
+    const existingOverride = dateOverrides.find(d => d.date === dateForm.date)
+    if (existingOverride) {
+      msg(`${dateForm.date}는 이미 ${existingOverride.is_holiday ? '휴관일' : '특별운영일'}로 등록되어 있습니다. 삭제 후 다시 추가해주세요.`, true)
+      return
+    }
     setSaving(true)
     const isHoliday = dateForm.type === 'holiday'
     const err = await addDateOverride(dateForm.date, !isHoliday, isHoliday, dateForm.label || null)
@@ -284,24 +295,31 @@ export function AdminPage() {
     setDateForm({ date: '', type: 'holiday', label: '' })
   }
 
-  function handleAddSlot() {
+  async function handleAddSlot() {
     if (slotEnd <= slotStart) { msg('종료 시간은 시작 시간보다 커야 합니다.', true); return }
     const slot = buildSlot(slotStart, slotEnd)
     if (slotList.includes(slot)) { msg('이미 등록된 슬롯입니다.', true); return }
-    setSlotList(prev => [...prev, slot].sort((a, b) => parseFloat(a) - parseFloat(b)))
+    const newList = [...slotList, slot].sort((a, b) => parseFloat(a) - parseFloat(b))
+    setSlotList(newList)
+    const err = await upsertScheduleRulesForSlots([slot])
+    if (err) msg(`슬롯이 추가됐으나 규칙 생성에 실패했습니다: ${err}`, true)
   }
 
   async function handleSettingsSave(e: React.FormEvent) {
     e.preventDefault()
     if (!adminTenant) return
     if (slotList.length === 0) { msg('슬롯을 하나 이상 등록해야 합니다.', true); return }
+    if (settingsTheme && !HEX_COLOR_RE.test(settingsTheme.trim())) {
+      msg('테마 색상은 #RRGGBB 형식으로 입력해주세요. (예: #2563eb)', true)
+      return
+    }
     setSaving(true)
     const hasHalf = slotList.some(s => s.includes('.'))
     const [nameErr, settingsErr, rulesErr] = await Promise.all([
-      updateTenantName(adminTenant.id, settingsName),
+      updateTenantName(adminTenant.id, settingsName.trim()),
       updateTenantSettings(adminTenant.id, {
-        title: settingsTitle,
-        theme_color: settingsTheme || undefined,
+        title: settingsTitle.trim(),
+        theme_color: settingsTheme.trim() || undefined,
         time_slots: slotList,
         slot_interval_minutes: hasHalf ? 30 : 60,
         slot_labels: slotLabels,
@@ -314,12 +332,12 @@ export function AdminPage() {
     if (!err) {
       const updated = {
         ...adminTenant,
-        name: settingsName,
+        name: settingsName.trim(),
         settings: {
           ...adminTenant.settings,
-          title: settingsTitle,
+          title: settingsTitle.trim(),
           time_slots: slotList,
-          theme_color: settingsTheme || undefined,
+          theme_color: settingsTheme.trim() || undefined,
           slot_interval_minutes: hasHalf ? 30 : 60,
           slot_labels: slotLabels,
           legend_items: legendItems,
@@ -643,7 +661,7 @@ export function AdminPage() {
                   <div>
                     <label className="block text-xs text-gray-500 mb-1">역할명</label>
                     <input type="text" value={newRoleName} onChange={e => setNewRoleName(e.target.value)}
-                      placeholder="예: 팀장" className={inputCls + ' w-full'} required />
+                      placeholder="예: 팀장" maxLength={30} className={inputCls + ' w-full'} required />
                   </div>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" checked={newRoleSplitCell} onChange={e => setNewRoleSplitCell(e.target.checked)}
@@ -740,7 +758,7 @@ export function AdminPage() {
                       </div>
                       <div>
                         <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">레이블 (선택)</label>
-                        <input type="text" value={dateForm.label} onChange={e => setDateForm(f => ({ ...f, label: e.target.value }))} placeholder="예: 추석연휴" className={inputCls + ' w-36'} />
+                        <input type="text" value={dateForm.label} onChange={e => setDateForm(f => ({ ...f, label: e.target.value }))} placeholder="예: 추석연휴" maxLength={100} className={inputCls + ' w-36'} />
                       </div>
                       <button type="submit" disabled={saving} className="px-4 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50">
                         {saving ? '저장 중...' : '추가'}
@@ -794,15 +812,15 @@ export function AdminPage() {
                   <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider font-semibold">기본 정보</p>
                   <div>
                     <label className="block text-xs text-gray-500 mb-1">조직명</label>
-                    <input type="text" value={settingsName} onChange={e => setSettingsName(e.target.value)} className={inputCls + ' w-full'} />
+                    <input type="text" value={settingsName} onChange={e => setSettingsName(e.target.value)} maxLength={50} className={inputCls + ' w-full'} />
                   </div>
                   <div>
                     <label className="block text-xs text-gray-500 mb-1">페이지 타이틀</label>
-                    <input type="text" value={settingsTitle} onChange={e => setSettingsTitle(e.target.value)} className={inputCls + ' w-full'} />
+                    <input type="text" value={settingsTitle} onChange={e => setSettingsTitle(e.target.value)} maxLength={50} className={inputCls + ' w-full'} />
                   </div>
                   <div>
                     <label className="block text-xs text-gray-500 mb-1">테마 색상 (#RRGGBB, 선택)</label>
-                    <input type="text" value={settingsTheme} onChange={e => setSettingsTheme(e.target.value)} placeholder="#2563eb" className={inputCls + ' w-full'} />
+                    <input type="text" value={settingsTheme} onChange={e => setSettingsTheme(e.target.value)} placeholder="#2563eb" maxLength={7} className={inputCls + ' w-full'} />
                   </div>
                 </div>
 
@@ -911,6 +929,7 @@ export function AdminPage() {
                               type="text"
                               value={editLegendLabel}
                               onChange={e => setEditLegendLabel(e.target.value)}
+                              maxLength={50}
                               className={inputCls + ' flex-1 min-w-32'}
                             />
                             <select
@@ -978,6 +997,7 @@ export function AdminPage() {
                         value={newLegendLabel}
                         onChange={e => setNewLegendLabel(e.target.value)}
                         placeholder="햇님타임 (10~18시)"
+                        maxLength={50}
                         className={inputCls + ' w-full'}
                       />
                     </div>

@@ -128,6 +128,7 @@ interface CreateForm {
 }
 
 const EMPTY_FORM: CreateForm = { slug: '', name: '', business_type: '', title: '', theme_color: '', tenant_mode: '회원선택' }
+const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 
 // ─── SuperAdminPage ───────────────────────────────────────────────────────────
 
@@ -257,6 +258,21 @@ export function SuperAdminPage() {
 
   const createTenant = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
+    const slugTrimmed = form.slug.trim()
+    if (!SLUG_RE.test(slugTrimmed)) {
+      setMessage('오류: Slug는 소문자 영문·숫자와 하이픈(-)만 사용할 수 있습니다. (예: my-org)')
+      return
+    }
+    const duplicate = tenants.find(t => t.slug === slugTrimmed)
+    if (duplicate) {
+      setMessage('오류: 이미 사용 중인 Slug입니다.')
+      return
+    }
+    const HEX_COLOR_RE = /^#[0-9A-Fa-f]{6}$/
+    if (form.theme_color && !HEX_COLOR_RE.test(form.theme_color.trim())) {
+      setMessage('오류: 테마 색상은 #RRGGBB 형식으로 입력해주세요. (예: #2563eb)')
+      return
+    }
     if (createSlots.length === 0) { setMessage('슬롯을 하나 이상 등록해야 합니다.'); return }
     setSaving(true)
     setMessage('')
@@ -264,12 +280,12 @@ export function SuperAdminPage() {
     const { data, error } = await supabase
       .from('tenants')
       .insert({
-        slug: form.slug,
-        name: form.name,
-        business_type: form.business_type || null,
+        slug: slugTrimmed,
+        name: form.name.trim(),
+        business_type: form.business_type.trim() || null,
         settings: {
-          title: form.title || form.name,
-          theme_color: form.theme_color || undefined,
+          title: form.title.trim() || form.name.trim(),
+          theme_color: form.theme_color.trim() || undefined,
           time_slots: createSlots,
           open_from: '00:00',
           open_to: '24:00',
@@ -341,18 +357,19 @@ export function SuperAdminPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {([
-                { key: 'slug',          label: 'Slug (소문자+하이픈)', placeholder: 'my-org',       required: true },
-                { key: 'name',          label: '조직명',               placeholder: '한서미용실',    required: true },
-                { key: 'business_type', label: '업종 (선택)',           placeholder: 'salon / volunteer' },
-                { key: 'title',         label: '페이지 타이틀 (선택)',  placeholder: '스케줄' },
-                { key: 'theme_color',   label: '테마 색상 (선택)',      placeholder: '#2563eb' },
-              ] as { key: keyof CreateForm; label: string; placeholder: string; required?: boolean }[]).map(f => (
+                { key: 'slug',          label: 'Slug (소문자+하이픈)', placeholder: 'my-org',       required: true,  maxLength: 50 },
+                { key: 'name',          label: '조직명',               placeholder: '한서미용실',    required: true,  maxLength: 50 },
+                { key: 'business_type', label: '업종 (선택)',           placeholder: 'salon / volunteer',              maxLength: 50 },
+                { key: 'title',         label: '페이지 타이틀 (선택)',  placeholder: '스케줄',                         maxLength: 50 },
+                { key: 'theme_color',   label: '테마 색상 (선택)',      placeholder: '#2563eb',                        maxLength: 7  },
+              ] as { key: keyof CreateForm; label: string; placeholder: string; required?: boolean; maxLength?: number }[]).map(f => (
                 <div key={f.key}>
                   <label className="block text-xs text-[var(--color-text-secondary)] mb-1">{f.label}</label>
                   <input
                     type="text"
                     placeholder={f.placeholder}
                     required={f.required}
+                    maxLength={f.maxLength}
                     value={form[f.key]}
                     onChange={e => setForm(prev => ({ ...prev, [f.key]: e.target.value }))}
                     className={inputCls}

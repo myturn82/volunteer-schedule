@@ -28,7 +28,7 @@ describe('TimeSlotCell', () => {
         highlightName={null}
       />
     )
-    expect(screen.getByText('Break')).toBeInTheDocument()
+    expect(screen.getByText('CLOSE')).toBeInTheDocument()
   })
 
   it('shows CLOSE text when isClosed (vol col)', () => {

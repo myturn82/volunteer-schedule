@@ -36,6 +36,11 @@ function formatTimeSub(ts: string | null): string {
   return `${ts}시`
 }
 
+const PHONE_RE = /^[0-9]{2,4}-[0-9]{3,4}-[0-9]{4}$|^[0-9]{9,11}$/
+function isValidPhone(phone: string): boolean {
+  return PHONE_RE.test(phone.replace(/\s/g, ''))
+}
+
 function getRoleLabel(role: string): string {
   if (role === '50plus') return '50+'
   if (role === 'team_leader') return '팀장'
@@ -139,6 +144,7 @@ export function SlotEditModal({ target, cellState, profile, splitRoles = [], isS
     if (isSplitMode) {
       if (!freeformName.trim()) return
       if (!freeformPhone.trim()) { setError('연락처를 입력해주세요'); return }
+      if (!isValidPhone(freeformPhone.trim())) { setError('연락처 형식이 올바르지 않습니다. (예: 010-1234-5678)'); return }
       if (cellState.isFull && !window.confirm(`정원(${cellState.maxCapacity}명)이 초과됩니다. 계속 추가하시겠습니까?`)) return
       setLoading(true)
       const err = await onAdd(
@@ -194,6 +200,7 @@ export function SlotEditModal({ target, cellState, profile, splitRoles = [], isS
     if (isSplitMode) {
       if (!freeformName.trim()) return
       if (!freeformPhone.trim()) { setError('연락처를 입력해주세요'); return }
+      if (!isValidPhone(freeformPhone.trim())) { setError('연락처 형식이 올바르지 않습니다. (예: 010-1234-5678)'); return }
       setLoading(true)
       const err = await onUpdate(
         editingId,
@@ -228,7 +235,11 @@ export function SlotEditModal({ target, cellState, profile, splitRoles = [], isS
     if (err) setError(err)
   }
 
-  const isAddDisabled = loading || (isSplitMode ? !freeformName.trim() : !selectedUserId)
+  const isAddDisabled = loading || (
+    isSplitMode
+      ? !freeformName.trim() || !freeformPhone.trim() || !isValidPhone(freeformPhone.trim())
+      : !selectedUserId
+  )
 
   const inputClass = 'w-full border border-[var(--color-border-strong)] rounded-xl px-3 py-2.5 text-sm bg-[var(--color-surface-secondary)] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-500/60 transition-all duration-200'
 
@@ -374,18 +385,21 @@ export function SlotEditModal({ target, cellState, profile, splitRoles = [], isS
                     value={freeformName}
                     onChange={e => setFreeformName(e.target.value)}
                     placeholder="이름 (필수)"
+                    maxLength={50}
                     className={inputClass}
                   />
                   <input
                     value={freeformPhone}
                     onChange={e => setFreeformPhone(e.target.value)}
                     placeholder="연락처 (필수)"
+                    maxLength={20}
                     className={inputClass}
                   />
                   <input
                     value={note}
                     onChange={e => setNote(e.target.value)}
                     placeholder="메모 (선택)"
+                    maxLength={200}
                     className={inputClass}
                   />
                 </>

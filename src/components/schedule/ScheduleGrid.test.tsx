@@ -23,16 +23,15 @@ describe('ScheduleGrid', () => {
     expect(screen.getByText('토')).toBeInTheDocument()
   })
 
-  it('renders time slot labels', () => {
+  it('renders time slot labels in HH:MM~HH:MM format', () => {
     render(<ScheduleGrid {...mockProps} />)
-    // 주차별로 반복되므로 getAllByText 사용
-    expect(screen.getAllByText('10-12').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('20-22').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('10:00~12:00').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('20:00~22:00').length).toBeGreaterThan(0)
   })
 
-  it('renders BREAKTIME cells for 12-13 row', () => {
+  it('renders CLOSE cells for 12-13 row', () => {
     render(<ScheduleGrid {...mockProps} />)
-    const breaktimeCells = screen.getAllByText('BREAKTIME')
-    expect(breaktimeCells.length).toBeGreaterThan(0)
+    const closeCells = screen.getAllByText('CLOSE')
+    expect(closeCells.length).toBeGreaterThan(0)
   })
 })

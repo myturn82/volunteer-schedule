@@ -17,7 +17,11 @@ export function CapacityModal({ slotSettings, timeSlots, slotLabels = {}, onClos
 
   async function handleChange(timeSlot: TimeSlot, value: string) {
     const n = parseInt(value, 10)
-    if (isNaN(n) || n < 0) return
+    if (isNaN(n) || n < 1) {
+      setError('최소 인원은 1명 이상이어야 합니다.')
+      return
+    }
+    setError(null)
     setLoading(timeSlot)
     const err = await onUpdate(timeSlot, n)
     setLoading(null)
@@ -65,7 +69,7 @@ export function CapacityModal({ slotSettings, timeSlots, slotLabels = {}, onClos
                   <div className="flex items-center gap-1 ml-2">
                     <input
                       type="number"
-                      min={0}
+                      min={1}
                       max={99}
                       defaultValue={setting?.max_capacity ?? DEFAULT_MAX_CAPACITY}
                       disabled={loading === slot}

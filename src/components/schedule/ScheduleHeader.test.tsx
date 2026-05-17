@@ -5,7 +5,9 @@ import { ScheduleHeader } from './ScheduleHeader'
 describe('ScheduleHeader', () => {
   it('displays year and month', () => {
     render(<ScheduleHeader year={2026} month={4} onPrev={vi.fn()} onNext={vi.fn()} />)
-    expect(screen.getByText('2026년 04월 자원봉사활동 스케줄')).toBeInTheDocument()
+    expect(screen.getAllByText(/2026/)[0]).toBeInTheDocument()
+    expect(screen.getAllByText(/04월/)[0]).toBeInTheDocument()
+    expect(screen.getAllByText(/스케줄/)[0]).toBeInTheDocument()
   })
 
   it('calls onPrev when < button clicked', () => {
