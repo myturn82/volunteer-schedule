@@ -77,7 +77,6 @@ export function LoginModal({ onClose, onSignIn, onSignUp, onGoogle, onKakao, hid
 
   // 현재 선택된 활동유형 (tenant_role이 있으면 우선, 없으면 기본 role)
   const hasCustomRoles = tenantRoles !== null && tenantRoles.length > 0
-  const activitySelected = tenantRoleId !== null || role !== null
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
