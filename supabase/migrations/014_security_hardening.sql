@@ -9,10 +9,10 @@
 
 -- ── 헬퍼 함수 (SECURITY DEFINER로 RLS 루프 방지) ─────────────────────────────
 -- 기존 함수 DROP (파라미터명 충돌 방지)
-DROP FUNCTION IF EXISTS public.is_tenant_member(uuid);
-DROP FUNCTION IF EXISTS public.is_tenant_admin(uuid);
-DROP FUNCTION IF EXISTS public.is_super_admin_caller();
-DROP FUNCTION IF EXISTS public.shares_tenant_with(uuid);
+DROP FUNCTION IF EXISTS public.is_tenant_member(uuid) CASCADE;
+DROP FUNCTION IF EXISTS public.is_tenant_admin(uuid) CASCADE;
+DROP FUNCTION IF EXISTS public.is_super_admin_caller() CASCADE;
+DROP FUNCTION IF EXISTS public.shares_tenant_with(uuid) CASCADE;
 
 CREATE OR REPLACE FUNCTION public.is_tenant_member(tid uuid)
 RETURNS boolean
