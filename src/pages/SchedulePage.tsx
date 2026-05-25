@@ -223,181 +223,89 @@ export function SchedulePage() {
 
   return (
     <div className="min-h-[100dvh] bg-[var(--color-bg)]">
-      {/* Sticky glass toolbar */}
-      <header className="sticky top-0 z-30 px-2 pt-2 pb-1 sm:px-4 sm:pt-3 sm:pb-2">
-        <div className="relative bg-[var(--color-surface)]/90 backdrop-blur-xl border border-[var(--color-border)] rounded-2xl shadow-[var(--shadow-md)] px-3 py-2 sm:px-4 sm:py-2.5 flex items-center gap-2 justify-between">
-          <FilterBar value={highlightName} onChange={setHighlightName} />
-
-          {/* Desktop button bar */}
-          <div className="hidden sm:flex items-center gap-1.5 flex-wrap">
-            <ExportButton year={year} month={month} />
-
-            {profile ? (
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {profile.is_super_admin && (
-                  <button
-                    onClick={() => navigate('/superadmin')}
-                    className="text-xs font-medium px-2.5 py-1 rounded-xl border border-purple-300 dark:border-purple-700 bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900/50 transition-all duration-200"
-                  >
-                    슈퍼어드민
-                  </button>
-                )}
-                {profile.is_super_admin && tenant && (
-                  <button
-                    onClick={resetTenantSelection}
-                    className="text-xs font-medium px-2.5 py-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-secondary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-all duration-200"
-                  >
-                    {tenant.name} · 조직 변경
-                  </button>
-                )}
-
-                <span className="text-xs text-[var(--color-text-secondary)] font-medium px-2.5 py-1 bg-[var(--color-surface-secondary)] rounded-xl border border-[var(--color-border)]">
-                  {profile.name}
-                  <span className="ml-1 text-[var(--color-text-muted)]">· {memberTenantRoleName ?? ROLE_LABELS[profile.role]}</span>
-                </span>
-
-                {isPrivileged && (
-                  <button
-                    onClick={() => navigate('/admin')}
-                    className="px-3 py-1.5 text-xs font-medium rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/60 hover:bg-blue-100 dark:hover:bg-blue-900/60 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-                  >
-                    관리자
-                  </button>
-                )}
-                {isPrivileged && (
-                  <button
-                    onClick={() => setShowCapacity(true)}
-                    className="px-3 py-1.5 text-xs font-medium rounded-xl border border-[var(--color-border)] text-[var(--color-text-secondary)] bg-[var(--color-surface-secondary)] hover:bg-[var(--color-surface-hover)] transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-                  >
-                    인원 설정
-                  </button>
-                )}
-                {isPrivileged && tenantMode === '회원선택' && (
-                  <button
-                    onClick={handleAutoAssign}
-                    className="px-3 py-1.5 text-xs font-medium rounded-xl border border-blue-200 dark:border-blue-800/40 text-blue-500 dark:text-blue-400 bg-[var(--color-surface-secondary)] hover:bg-blue-50 dark:hover:bg-blue-950/20 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-                  >
-                    자동배정
-                  </button>
-                )}
-                {isPrivileged && (
-                  <button
-                    onClick={handleClearClick}
-                    className="px-3 py-1.5 text-xs font-medium rounded-xl border border-red-200 dark:border-red-800/40 text-red-500 dark:text-red-400 bg-[var(--color-surface-secondary)] hover:bg-red-50 dark:hover:bg-red-950/20 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-                  >
-                    초기화
-                  </button>
-                )}
-
-                <button
-                  onClick={signOut}
-                  className="px-3 py-1.5 text-xs font-medium rounded-xl border border-[var(--color-border)] text-[var(--color-text-muted)] bg-[var(--color-surface-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-secondary)] transition-all duration-200"
-                >
-                  로그아웃
-                </button>
-                <button
-                  onClick={() => setShowDeleteConfirm(true)}
-                  className="px-3 py-1.5 text-xs font-medium rounded-xl border border-red-200 dark:border-red-800/40 text-red-500 dark:text-red-400 bg-[var(--color-surface-secondary)] hover:bg-red-50 dark:hover:bg-red-950/20 transition-all duration-200"
-                >
-                  회원탈퇴
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => setShowLogin(true)}
-                className="px-4 py-1.5 text-sm font-semibold rounded-xl bg-[var(--color-brand-primary)] text-white hover:bg-[var(--color-brand-primary-hover)] transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] shadow-[0_2px_10px_rgba(37,99,235,0.35)]"
-              >
-                로그인
-              </button>
-            )}
-          </div>
-
-          {/* Mobile: login/hamburger */}
-          <div className="flex sm:hidden items-center gap-1.5">
-            {profile ? (
-              <button
-                onClick={() => setShowMenu(v => !v)}
-                aria-label="메뉴"
-                className="w-8 h-8 flex items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-secondary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-all"
-              >
-                {showMenu
-                  ? <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5 5l10 10M15 5L5 15"/></svg>
-                  : <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 5h14M3 10h14M3 15h14"/></svg>
-                }
-              </button>
-            ) : (
-              <button
-                onClick={() => setShowLogin(true)}
-                className="px-3 py-1.5 text-sm font-semibold rounded-xl bg-[var(--color-brand-primary)] text-white hover:bg-[var(--color-brand-primary-hover)] transition-all"
-              >
-                로그인
-              </button>
-            )}
-          </div>
-
-          {/* Mobile dropdown */}
-          {showMenu && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
-              <div className="sm:hidden absolute top-[calc(100%+6px)] left-0 right-0 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl shadow-lg z-50 overflow-hidden">
-                <div className="px-3 py-2.5 flex items-center justify-between bg-[var(--color-surface-secondary)] border-b border-[var(--color-border)]">
-                  <span className="text-sm font-semibold text-[var(--color-text-primary)]">{profile?.name}</span>
-                  <span className="text-xs text-[var(--color-text-muted)] bg-[var(--color-surface)] px-2 py-0.5 rounded-lg border border-[var(--color-border)]">
-                    {memberTenantRoleName ?? ROLE_LABELS[profile!.role]}
-                  </span>
-                </div>
-                <div className="p-2 space-y-0.5">
-                  <div className="px-1 py-1">
-                    <ExportButton year={year} month={month} />
-                  </div>
-                  {profile?.is_super_admin && (
-                    <button onClick={() => { navigate('/superadmin'); setShowMenu(false) }} className="w-full text-left px-3 py-2 text-sm font-medium rounded-xl text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/20 transition-colors">
-                      슈퍼어드민
-                    </button>
-                  )}
-                  {profile?.is_super_admin && tenant && (
-                    <button onClick={() => { resetTenantSelection(); setShowMenu(false) }} className="w-full text-left px-3 py-2 text-sm rounded-xl text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors">
-                      {tenant.name} · 조직 변경
-                    </button>
-                  )}
-                  {isPrivileged && (
-                    <button onClick={() => { navigate('/admin'); setShowMenu(false) }} className="w-full text-left px-3 py-2 text-sm font-medium rounded-xl text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/20 transition-colors">
-                      관리자 설정
-                    </button>
-                  )}
-                  {isPrivileged && (
-                    <button onClick={() => { setShowCapacity(true); setShowMenu(false) }} className="w-full text-left px-3 py-2 text-sm rounded-xl text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors">
-                      인원 설정
-                    </button>
-                  )}
-                  {isPrivileged && tenantMode === '회원선택' && (
-                    <button onClick={() => { handleAutoAssign(); setShowMenu(false) }} className="w-full text-left px-3 py-2 text-sm rounded-xl text-blue-500 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/20 transition-colors">
-                      자동배정
-                    </button>
-                  )}
-                  {isPrivileged && (
-                    <button onClick={() => { handleClearClick(); setShowMenu(false) }} className="w-full text-left px-3 py-2 text-sm rounded-xl text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors">
-                      초기화
-                    </button>
-                  )}
-                  <div className="h-px bg-[var(--color-border)] mx-1 my-1" />
-                  <button onClick={() => { signOut(); setShowMenu(false) }} className="w-full text-left px-3 py-2 text-sm rounded-xl text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] transition-colors">
-                    로그아웃
-                  </button>
-                  <button onClick={() => { setShowDeleteConfirm(true); setShowMenu(false) }} className="w-full text-left px-3 py-2 text-sm rounded-xl text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors">
-                    회원탈퇴
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-      </header>
-
       {/* Main content */}
       <main className="px-2 py-2 sm:px-4 sm:py-3">
         <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl shadow-[var(--shadow-lg)] overflow-hidden animate-fade-up">
-          <div className="px-3 py-3 sm:px-5 sm:py-4 border-b border-[var(--color-border)]">
+          <div className="relative px-3 py-3 sm:px-5 sm:py-4 border-b border-[var(--color-border)]">
+            {/* Toolbar */}
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <FilterBar value={highlightName} onChange={setHighlightName} />
+              <div className="flex items-center gap-1.5">
+                <ExportButton year={year} month={month} />
+                {profile ? (
+                  <button
+                    onClick={() => setShowMenu(v => !v)}
+                    aria-label="메뉴"
+                    className="w-8 h-8 flex items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-secondary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-all"
+                  >
+                    {showMenu
+                      ? <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5 5l10 10M15 5L5 15"/></svg>
+                      : <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 5h14M3 10h14M3 15h14"/></svg>
+                    }
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setShowLogin(true)}
+                    className="px-3 py-1.5 text-sm font-semibold rounded-xl bg-[var(--color-brand-primary)] text-white hover:bg-[var(--color-brand-primary-hover)] transition-all"
+                  >
+                    로그인
+                  </button>
+                )}
+              </div>
+            </div>
+            {/* Menu dropdown */}
+            {showMenu && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
+                <div className="absolute top-14 right-3 sm:right-5 w-64 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl shadow-lg z-50 overflow-hidden">
+                  <div className="px-3 py-2.5 flex items-center justify-between bg-[var(--color-surface-secondary)] border-b border-[var(--color-border)]">
+                    <span className="text-sm font-semibold text-[var(--color-text-primary)]">{profile?.name}</span>
+                    <span className="text-xs text-[var(--color-text-muted)] bg-[var(--color-surface)] px-2 py-0.5 rounded-lg border border-[var(--color-border)]">
+                      {memberTenantRoleName ?? ROLE_LABELS[profile!.role]}
+                    </span>
+                  </div>
+                  <div className="p-2 space-y-0.5">
+                    {profile?.is_super_admin && (
+                      <button onClick={() => { navigate('/superadmin'); setShowMenu(false) }} className="w-full text-left px-3 py-2 text-sm font-medium rounded-xl text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/20 transition-colors">
+                        슈퍼어드민
+                      </button>
+                    )}
+                    {profile?.is_super_admin && tenant && (
+                      <button onClick={() => { resetTenantSelection(); setShowMenu(false) }} className="w-full text-left px-3 py-2 text-sm rounded-xl text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors">
+                        {tenant.name} · 조직 변경
+                      </button>
+                    )}
+                    {isPrivileged && (
+                      <button onClick={() => { navigate('/admin'); setShowMenu(false) }} className="w-full text-left px-3 py-2 text-sm font-medium rounded-xl text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/20 transition-colors">
+                        관리자 설정
+                      </button>
+                    )}
+                    {isPrivileged && (
+                      <button onClick={() => { setShowCapacity(true); setShowMenu(false) }} className="w-full text-left px-3 py-2 text-sm rounded-xl text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors">
+                        인원 설정
+                      </button>
+                    )}
+                    {isPrivileged && tenantMode === '회원선택' && (
+                      <button onClick={() => { handleAutoAssign(); setShowMenu(false) }} className="w-full text-left px-3 py-2 text-sm rounded-xl text-blue-500 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/20 transition-colors">
+                        자동배정
+                      </button>
+                    )}
+                    {isPrivileged && (
+                      <button onClick={() => { handleClearClick(); setShowMenu(false) }} className="w-full text-left px-3 py-2 text-sm rounded-xl text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors">
+                        초기화
+                      </button>
+                    )}
+                    <div className="h-px bg-[var(--color-border)] mx-1 my-1" />
+                    <button onClick={() => { signOut(); setShowMenu(false) }} className="w-full text-left px-3 py-2 text-sm rounded-xl text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] transition-colors">
+                      로그아웃
+                    </button>
+                    <button onClick={() => { setShowDeleteConfirm(true); setShowMenu(false) }} className="w-full text-left px-3 py-2 text-sm rounded-xl text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors">
+                      회원탈퇴
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
             <ScheduleHeader
               year={year} month={month} day={day}
               title={tenant?.settings?.title}
