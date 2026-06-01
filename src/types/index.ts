@@ -46,6 +46,7 @@ export interface TenantSettings {
   custom_fields?: CustomFieldDef[];
   volunteer_label?: string;
   plus_label?: string;
+  role_ratios?: Record<string, number>; // roleId → 퍼센트, 합계 100
 }
 
 export type LegendColor = 'amber' | 'pink' | 'slate' | 'yellow' | 'blue' | 'green' | 'purple' | 'red' | 'indigo'
@@ -78,6 +79,13 @@ export interface TenantMember {
   role_id: string | null;          // FK → tenant_roles.id
   is_approved: boolean;
   created_at: string;
+  // Feature 8 — 탈퇴
+  withdrawal_status: 'none' | 'pending' | 'approved';
+  withdrawal_requested_at: string | null;
+  withdrawal_approved_at: string | null;
+  // Feature 5 — 자동배정 선호
+  available_days: number[] | null;   // 0=일, 1=월 ... 6=토, null=제한없음
+  monthly_limit: number | null;      // null=제한없음
 }
 
 // Custom role entity defined per-tenant
