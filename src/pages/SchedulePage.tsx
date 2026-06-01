@@ -22,7 +22,7 @@ import { HolidayNoteModal } from '../components/modals/HolidayNoteModal'
 import { ConfirmDialog } from '../components/shared/ConfirmDialog'
 import { AutoAssignPreviewModal } from '../components/modals/AutoAssignPreviewModal'
 import { computeAutoAssignments } from '../utils/autoAssign'
-import type { ProposedAssignment } from '../utils/autoAssign'
+import type { ProposedAssignment, MemberPreference } from '../utils/autoAssign'
 import type { ModalTarget, ViewType, TenantMode, Assignment } from '../types'
 
 export function SchedulePage() {
@@ -67,6 +67,19 @@ export function SchedulePage() {
       .filter(m => m.tenant_id === tenant?.id && m.withdrawal_status === 'approved')
       .map(m => m.user_id)
   ), [memberships, tenant?.id])
+
+  const memberPreferences = useMemo(() => {
+    const map = new Map<string, MemberPreference>()
+    for (const m of memberships) {
+      if (m.tenant_id === tenant?.id) {
+        map.set(m.user_id, {
+          availableDays: m.available_days,
+          monthlyLimit: m.monthly_limit,
+        })
+      }
+    }
+    return map
+  }, [memberships, tenant?.id])
 
   useEffect(() => {
     if (!authLoading && !profile) setShowLogin(true)
@@ -170,6 +183,8 @@ export function SchedulePage() {
       profiles,
       splitRoles,
       isSplitMode,
+      memberPreferences,
+      roleRatios: tenant?.settings?.role_ratios,
       volunteerLabel: typeLabels.volunteer,
     })
     if (!proposals.length) {
