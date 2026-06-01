@@ -23,7 +23,7 @@ import { ConfirmDialog } from '../components/shared/ConfirmDialog'
 import { AutoAssignPreviewModal } from '../components/modals/AutoAssignPreviewModal'
 import { computeAutoAssignments } from '../utils/autoAssign'
 import type { ProposedAssignment } from '../utils/autoAssign'
-import type { ModalTarget, ViewType } from '../types'
+import type { ModalTarget, ViewType, TenantMode, Assignment } from '../types'
 
 export function SchedulePage() {
   const today = new Date()
@@ -42,11 +42,25 @@ export function SchedulePage() {
   const [holidayTarget, setHolidayTarget] = useState<{ day: number; startHour: number; endHour: number } | null>(null)
   const [memberNotice, setMemberNotice] = useState<string | null>(null)
 
+  const [filterMemberId, setFilterMemberId] = useState<string | null>(null)
+
   const { profile, loading: authLoading, signIn, signUp, signInWithGoogle, signInWithKakao } = useAuth()
-  const { tenant, tenantRole, memberships, timeSlots, slotLabels, legendItems, customFields } = useTenant()
+  const { tenant, tenantRole, memberships, timeSlots, slotLabels, legendItems, customFields, typeLabels } = useTenant()
   const memberRoleId = memberships.find(m => m.tenant_id === tenant?.id)?.role_id ?? null
   const isPrivileged = profile?.is_super_admin || tenantRole === 'admin'
-  const tenantMode = tenant?.settings?.tenant_mode ?? '회원선택'
+  const rawMode = tenant?.settings?.tenant_mode ?? '회원선택'
+  const tenantMode: TenantMode =
+    rawMode === '회원선택' ? '회원공유' :
+    rawMode === '직접입력' ? '비회원' :
+    rawMode as TenantMode
+
+  const displayAssignmentFilter = useMemo<((a: Assignment) => boolean) | undefined>(() => {
+    if (tenantMode !== '회원개별') return undefined
+    if (isPrivileged) {
+      return filterMemberId ? (a: Assignment) => a.user_id === filterMemberId : undefined
+    }
+    return (a: Assignment) => a.user_id === (profile?.id ?? '')
+  }, [tenantMode, isPrivileged, filterMemberId, profile?.id])
 
   useEffect(() => {
     if (!authLoading && !profile) setShowLogin(true)
@@ -139,7 +153,7 @@ export function SchedulePage() {
   }
 
   function handleAutoAssign() {
-    if (tenantMode !== '회원선택') return
+    if (tenantMode === '비회원') return
     const proposals = computeAutoAssignments({
       days: getTargetDays(),
       timeSlots,
@@ -150,6 +164,7 @@ export function SchedulePage() {
       profiles,
       splitRoles,
       isSplitMode,
+      volunteerLabel: typeLabels.volunteer,
     })
     if (!proposals.length) {
       alert('배정할 빈 슬롯이 없거나 배정 가능한 회원이 없습니다.')
@@ -174,7 +189,7 @@ export function SchedulePage() {
     }
 
     if (
-      tenantMode === '회원선택' &&
+      tenantMode !== '비회원' &&
       !isPrivileged &&
       profile &&
       !getTimeSubOptions(target.timeSlot)
@@ -242,7 +257,19 @@ export function SchedulePage() {
                 인원 설정
               </span>
             </button>
-            {tenantMode === '회원선택' && (
+            {tenantMode === '회원개별' && isPrivileged && (
+              <select
+                value={filterMemberId ?? ''}
+                onChange={e => setFilterMemberId(e.target.value || null)}
+                className="px-2 py-1 text-xs border border-[var(--color-border)] rounded-lg bg-[var(--color-surface)] text-[var(--color-text-secondary)]"
+              >
+                <option value="">전체 회원</option>
+                {profiles.map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            )}
+            {tenantMode !== '비회원' && (
               <button onClick={() => { handleAutoAssign(); close() }} className={menuItemCls}>
                 <span className="flex items-center gap-2.5">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M15 4V2M15 16v-2M8 9h2M20 9h2M17.8 11.8 19 13M17.8 6.2 19 5M12.2 6.2 11 5M12.2 11.8 11 13"/><path d="M3 21l9-9"/><path d="M12.2 6.2 3 15l3 3 9.2-9.2"/></svg>
@@ -312,6 +339,7 @@ export function SchedulePage() {
                 onHolidayCellClick={profile && isPrivileged
                   ? (d, startHour, endHour) => setHolidayTarget({ day: d, startHour, endHour })
                   : undefined}
+                displayAssignmentFilter={displayAssignmentFilter}
               />
             ) : viewType === 'week' ? (
               <WeekGrid
@@ -336,6 +364,7 @@ export function SchedulePage() {
                   setDay(d.getDate())
                 }}
                 onCellClick={handleCellClick}
+                displayAssignmentFilter={displayAssignmentFilter}
               />
             ) : (
               <DayView
@@ -348,6 +377,7 @@ export function SchedulePage() {
                 isSplitMode={isSplitMode}
                 slotLabels={slotLabels}
                 onCellClick={handleCellClick}
+                displayAssignmentFilter={displayAssignmentFilter}
               />
             )}
           </div>
@@ -378,6 +408,7 @@ export function SchedulePage() {
           tenantMode={tenantMode}
           customFields={customFields}
           slotLabels={slotLabels}
+          typeLabels={typeLabels}
           onClose={() => setModalTarget(null)}
           onAdd={(name, note, volunteerType, timeSub, color, userId, roleId, customerName, customerPhone, extraData) => addAssignment({
             tenant_id: tenant!.id,
