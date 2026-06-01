@@ -55,10 +55,14 @@ export function AdminPage() {
     toggleScheduleRule, upsertScheduleRulesForSlots,
     addDateOverride, deleteDateOverride,
     updateTenantSettings, updateTenantName, approveUser,
+    approveWithdrawal, rejectWithdrawal,
   } = useAdmin(adminTenantId)
   const { roles, addRole, deleteRole, updateRole, moveRole } = useTenantRoles(adminTenantId)
 
-  const [tab, setTab] = useState<Tab>('members')
+  const initTab = searchParams.get('tab') as Tab | null
+  const [tab, setTab] = useState<Tab>(
+    initTab && (Object.keys(TAB_LABELS) as Tab[]).includes(initTab) ? initTab : 'members'
+  )
   const [message, setMessage] = useState<{ text: string; isError: boolean } | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -89,6 +93,8 @@ export function AdminPage() {
   const [settingsName, setSettingsName] = useState('')
   const [settingsTitle, setSettingsTitle] = useState('')
   const [settingsTheme, setSettingsTheme] = useState('')
+  const [settingsVolunteerLabel, setSettingsVolunteerLabel] = useState('')
+  const [settingsPlusLabel, setSettingsPlusLabel] = useState('')
   const [slotLabels, setSlotLabels] = useState<Record<string, string>>({})
   const [legendItems, setLegendItems] = useState<LegendItem[]>([])
   const [newLegendIcon, setNewLegendIcon] = useState('')
@@ -118,6 +124,8 @@ export function AdminPage() {
     setSettingsName(adminTenant.name)
     setSettingsTitle(s.title ?? '')
     setSettingsTheme(s.theme_color ?? '')
+    setSettingsVolunteerLabel(s.volunteer_label ?? '')
+    setSettingsPlusLabel(s.plus_label ?? '')
     setSlotLabels(s.slot_labels ?? {})
     setLegendItems(s.legend_items ?? [])
     setCustomFields(s.custom_fields ?? [])
@@ -449,6 +457,8 @@ export function AdminPage() {
       updateTenantSettings(adminTenant.id, {
         title: settingsTitle.trim(),
         theme_color: settingsTheme.trim() || undefined,
+        volunteer_label: settingsVolunteerLabel.trim() || undefined,
+        plus_label: settingsPlusLabel.trim() || undefined,
         time_slots: slotList,
         slot_interval_minutes: hasHalf ? 30 : 60,
         slot_labels: slotLabels,
@@ -467,6 +477,8 @@ export function AdminPage() {
           title: settingsTitle.trim(),
           time_slots: slotList,
           theme_color: settingsTheme.trim() || undefined,
+          volunteer_label: settingsVolunteerLabel.trim() || undefined,
+          plus_label: settingsPlusLabel.trim() || undefined,
           slot_interval_minutes: hasHalf ? 30 : 60,
           slot_labels: slotLabels,
           legend_items: legendItems,
@@ -549,7 +561,14 @@ export function AdminPage() {
             {tab === 'members' && (
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-wider font-semibold">회원 ({members.length}명)</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-wider font-semibold">회원 ({members.filter(m => m.is_approved).length}명)</p>
+                    {(() => { const n = members.filter(m => !m.is_approved).length; return n > 0 ? (
+                      <button onClick={() => setTab('pending')} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors">
+                        승인대기 {n}건 →
+                      </button>
+                    ) : null })()}
+                  </div>
                   <div className="flex gap-2">
                     <button
                       onClick={() => { setShowDirectCreate(v => !v); setShowAddMember(false) }}
@@ -756,6 +775,47 @@ export function AdminPage() {
                           ))}
                         </tbody>
                       </table>
+                    </div>
+                  )
+                })()}
+
+                {/* 탈퇴 신청 */}
+                {(() => {
+                  const withdrawalPending = members.filter(m => m.withdrawal_status === 'pending')
+                  if (!withdrawalPending.length) return null
+                  return (
+                    <div className="mt-6">
+                      <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-wider font-semibold mb-3">
+                        탈퇴 신청 ({withdrawalPending.length}건)
+                      </p>
+                      <div className="space-y-2">
+                        {withdrawalPending.map(m => (
+                          <div key={m.id} className="flex items-center justify-between px-4 py-3 rounded-xl bg-[var(--color-surface-secondary)] border border-[var(--color-border)]">
+                            <div>
+                              <p className="text-sm font-medium text-[var(--color-text-primary)]">{m.profile?.name}</p>
+                              <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                                신청일: {m.withdrawal_requested_at
+                                  ? new Date(m.withdrawal_requested_at).toLocaleDateString('ko-KR')
+                                  : '-'}
+                              </p>
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => approveWithdrawal(m.user_id)}
+                                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors"
+                              >
+                                승인
+                              </button>
+                              <button
+                                onClick={() => rejectWithdrawal(m.user_id)}
+                                className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-[var(--color-border-strong)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors"
+                              >
+                                거절
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )
                 })()}
@@ -1047,6 +1107,14 @@ export function AdminPage() {
                   <div>
                     <label className="block text-xs text-[var(--color-text-muted)] mb-1">테마 색상 (#RRGGBB, 선택)</label>
                     <input type="text" value={settingsTheme} onChange={e => setSettingsTheme(e.target.value)} placeholder="#2563eb" maxLength={7} className={inputCls + ' w-full'} />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-[var(--color-text-muted)] mb-1">자원봉사자 역할 레이블 (기본: 자원봉사자)</label>
+                    <input type="text" value={settingsVolunteerLabel} onChange={e => setSettingsVolunteerLabel(e.target.value)} placeholder="자원봉사자" maxLength={20} className={inputCls + ' w-full'} />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-[var(--color-text-muted)] mb-1">50플러스 역할 레이블 (기본: 50플러스활동가)</label>
+                    <input type="text" value={settingsPlusLabel} onChange={e => setSettingsPlusLabel(e.target.value)} placeholder="50플러스활동가" maxLength={20} className={inputCls + ' w-full'} />
                   </div>
                 </div>
 
