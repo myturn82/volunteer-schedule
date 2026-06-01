@@ -1,4 +1,4 @@
-import type { SlotSetting, ScheduleRule, DateOverride, ModalTarget, Profile, TenantRole, TimeSlot } from '../../types'
+import type { Assignment, SlotSetting, ScheduleRule, DateOverride, ModalTarget, Profile, TenantRole, TimeSlot } from '../../types'
 import { getCellState } from '../../utils/cellState'
 import { parseSlotLabel } from '../../utils/timeSlots'
 
@@ -26,11 +26,12 @@ interface Props {
   isSplitMode?: boolean
   slotLabels?: Record<string, string>
   onCellClick: (target: ModalTarget) => void
+  displayAssignmentFilter?: (a: Assignment) => boolean
 }
 
 export function DayView({
   year, month, day, timeSlots, assignments, slotSettings, scheduleRules, dateOverrides,
-  profile: _profile, splitRoles = [], isSplitMode = false, slotLabels = {}, onCellClick,
+  profile: _profile, splitRoles = [], isSplitMode = false, slotLabels = {}, onCellClick, displayAssignmentFilter,
 }: Props) {
   const dow = new Date(year, month - 1, day).getDay()
 
@@ -42,7 +43,10 @@ export function DayView({
 
       {timeSlots.every(slot => {
         const cs = getCellState(day, slot, year, month, scheduleRules, slotSettings, dateOverrides, assignments)
-        const vis = isSplitMode ? cs.assignments : cs.assignments.filter(a => a.volunteer_type !== 'admin_note')
+        const displayCs = displayAssignmentFilter
+          ? { ...cs, assignments: cs.assignments.filter(displayAssignmentFilter) }
+          : cs
+        const vis = isSplitMode ? displayCs.assignments : displayCs.assignments.filter(a => a.volunteer_type !== 'admin_note')
         return cs.isBreaktime || cs.isClosed || cs.isHoliday || vis.length === 0
       }) && (
         <div className="text-sm text-[var(--color-text-muted)] text-center py-10">이날 등록된 스케줄이 없습니다.</div>
@@ -50,10 +54,13 @@ export function DayView({
 
       {timeSlots.map(slot => {
         const cs = getCellState(day, slot, year, month, scheduleRules, slotSettings, dateOverrides, assignments)
+        const displayCs = displayAssignmentFilter
+          ? { ...cs, assignments: cs.assignments.filter(displayAssignmentFilter) }
+          : cs
         const slotLabel = slotLabels[slot] ? `${slotLabels[slot]} (${parseSlotLabel(slot)})` : parseSlotLabel(slot)
         const visible = isSplitMode
-          ? cs.assignments
-          : cs.assignments.filter(a => a.volunteer_type !== 'admin_note')
+          ? displayCs.assignments
+          : displayCs.assignments.filter(a => a.volunteer_type !== 'admin_note')
 
         if (cs.isBreaktime || cs.isClosed) {
           return (

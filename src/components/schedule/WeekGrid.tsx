@@ -38,13 +38,14 @@ interface Props {
   tenantRole?: TenantAccessRole | null
   teamLeaderUserIds?: Set<string>
   isPrivileged?: boolean
+  displayAssignmentFilter?: (a: Assignment) => boolean
 }
 
 export function WeekGrid({
   weekDays, timeSlots, assignments, slotSettings, scheduleRules, dateOverrides,
   highlightName, splitRoles = [], indicatorBarRoles = [], isSplitMode = false, slotLabels = {},
   selectedDay, onDateHeaderClick, onCellClick,
-  memberRoleId, teamLeaderUserIds, isPrivileged = false,
+  memberRoleId, teamLeaderUserIds, isPrivileged = false, displayAssignmentFilter,
 }: Props) {
   const today = new Date()
   const activeRoles = isSplitMode && splitRoles.length > 0 ? splitRoles : []
@@ -145,6 +146,9 @@ export function WeekGrid({
               {weekDays.map((d, di) => {
                 const y = d.getFullYear(), m = d.getMonth() + 1, day = d.getDate()
                 const cs = getCellState(day, slot, y, m, scheduleRules, slotSettings, dateOverrides, assignments)
+                const displayCs = displayAssignmentFilter
+                  ? { ...cs, assignments: cs.assignments.filter(displayAssignmentFilter) }
+                  : cs
 
                 if (cs.isHoliday) {
                   return (
@@ -170,7 +174,7 @@ export function WeekGrid({
 
                 // ── Split mode: role sub-columns ──
                 if (activeRoles.length > 0) {
-                  const hasBar = cs.assignments.some(a => a.role_id && indicatorBarRoleIds.has(a.role_id))
+                  const hasBar = displayCs.assignments.some(a => a.role_id && indicatorBarRoleIds.has(a.role_id))
                   return (
                     <div
                       key={di}
@@ -181,7 +185,7 @@ export function WeekGrid({
                         <span className="absolute left-0 top-0 bottom-0 w-[3px] z-10 pointer-events-none" style={{ background: INDICATOR_BAR_COLOR }} />
                       )}
                       {activeRoles.map((role, ri) => {
-                        const roleAssigns = cs.assignments.filter(
+                        const roleAssigns = displayCs.assignments.filter(
                           a => a.role_id === role.id && !teamLeaderUserIds?.has(a.user_id)
                         )
                         const canClick = isAdmin || memberRoleId === role.id
@@ -228,8 +232,8 @@ export function WeekGrid({
                 }
 
                 // ── Non-split mode: single cell ──
-                const hasBar = cs.assignments.some(a => a.role_id && indicatorBarRoleIds.has(a.role_id))
-                const visibleAssigns = cs.assignments.filter(
+                const hasBar = displayCs.assignments.some(a => a.role_id && indicatorBarRoleIds.has(a.role_id))
+                const visibleAssigns = displayCs.assignments.filter(
                   a => a.volunteer_type !== 'admin_note' && !teamLeaderUserIds?.has(a.user_id) && !indicatorBarRoleIds.has(a.role_id ?? '')
                 )
                 const tint = isMoon

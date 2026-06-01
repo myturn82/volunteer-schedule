@@ -24,6 +24,7 @@ interface Props {
   slotLabels?: Record<string, string>
   onCellClick: (target: ModalTarget) => void
   onHolidayCellClick?: (day: number, startHour: number, endHour: number) => void
+  displayAssignmentFilter?: (a: Assignment) => boolean
 }
 
 const DOW_ORDER = [1, 2, 3, 4, 5, 6, 0]
@@ -165,7 +166,7 @@ function buildColMap(
 
 export function ScheduleGrid({
   year, month, timeSlots, assignments, slotSettings, scheduleRules, dateOverrides,
-  highlightName, profile, tenantRole, memberRoleId, teamLeaderUserIds, splitRoles = [], indicatorBarRoles = [], isSplitMode = false, slotLabels = {}, onCellClick, onHolidayCellClick,
+  highlightName, profile, tenantRole, memberRoleId, teamLeaderUserIds, splitRoles = [], indicatorBarRoles = [], isSplitMode = false, slotLabels = {}, onCellClick, onHolidayCellClick, displayAssignmentFilter,
 }: Props) {
   const isAdmin = profile?.is_super_admin || tenantRole === 'admin'
   const isIndicatorBarMember = !isAdmin && indicatorBarRoles.some(r => r.id === memberRoleId)
@@ -361,6 +362,9 @@ export function ScheduleGrid({
                       }
 
                       const cellState = getCellState(day, slot, year, month, scheduleRules, slotSettings, dateOverrides, assignments)
+                      const displayCellState = displayAssignmentFilter
+                        ? { ...cellState, assignments: cellState.assignments.filter(displayAssignmentFilter) }
+                        : cellState
 
                       // Split mode: one td per role
                       if (isSplitMode) {
@@ -393,7 +397,7 @@ export function ScheduleGrid({
                                 style={{ height: '1px' }}
                               >
                                 <TimeSlotCell
-                                  cellState={cellState}
+                                  cellState={displayCellState}
                                   timeSlot={slot}
                                   colType="role"
                                   roleId={role.id}
@@ -443,7 +447,7 @@ export function ScheduleGrid({
                               style={{ height: '1px' }}
                             >
                               <TimeSlotCell
-                                cellState={cellState}
+                                cellState={displayCellState}
                                 timeSlot={slot}
                                 colType="vol"
                                 onClick={() => onCellClick({ year, month, day, timeSlot: slot, volunteerType: 'volunteer' })}
@@ -460,7 +464,7 @@ export function ScheduleGrid({
                               style={{ height: '1px' }}
                             >
                               <TimeSlotCell
-                                cellState={cellState}
+                                cellState={displayCellState}
                                 timeSlot={slot}
                                 colType="plus"
                                 onClick={() => onCellClick({ year, month, day, timeSlot: slot, volunteerType: '50plus' })}
