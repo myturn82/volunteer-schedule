@@ -25,6 +25,7 @@ interface Props {
   onCellClick: (target: ModalTarget) => void
   onHolidayCellClick?: (day: number, startHour: number, endHour: number) => void
   displayAssignmentFilter?: (a: Assignment) => boolean
+  withdrawnUserIds?: Set<string>
 }
 
 const DOW_ORDER = [1, 2, 3, 4, 5, 6, 0]
@@ -166,7 +167,7 @@ function buildColMap(
 
 export function ScheduleGrid({
   year, month, timeSlots, assignments, slotSettings, scheduleRules, dateOverrides,
-  highlightName, profile, tenantRole, memberRoleId, teamLeaderUserIds, splitRoles = [], indicatorBarRoles = [], isSplitMode = false, slotLabels = {}, onCellClick, onHolidayCellClick, displayAssignmentFilter,
+  highlightName, profile, tenantRole, memberRoleId, teamLeaderUserIds, splitRoles = [], indicatorBarRoles = [], isSplitMode = false, slotLabels = {}, onCellClick, onHolidayCellClick, displayAssignmentFilter, withdrawnUserIds,
 }: Props) {
   const isAdmin = profile?.is_super_admin || tenantRole === 'admin'
   const isIndicatorBarMember = !isAdmin && indicatorBarRoles.some(r => r.id === memberRoleId)
@@ -409,6 +410,7 @@ export function ScheduleGrid({
                                   onIndicatorBarClick={isIndicatorBarMember && roleIdx === 0
                                     ? () => onCellClick({ year, month, day, timeSlot: slot, volunteerType: 'volunteer', roleId: memberRoleId! })
                                     : undefined}
+                                  withdrawnUserIds={withdrawnUserIds}
                                 />
                               </td>
                             ))}
@@ -454,6 +456,7 @@ export function ScheduleGrid({
                                 highlightName={highlightName}
                                 teamLeaderUserIds={teamLeaderUserIds}
                                 indicatorBarRoles={indicatorBarRoles}
+                                withdrawnUserIds={withdrawnUserIds}
                               />
                             </td>
                           )}
@@ -470,6 +473,7 @@ export function ScheduleGrid({
                                 onClick={() => onCellClick({ year, month, day, timeSlot: slot, volunteerType: '50plus' })}
                                 highlightName={highlightName}
                                 teamLeaderUserIds={teamLeaderUserIds}
+                                withdrawnUserIds={withdrawnUserIds}
                               />
                             </td>
                           )}

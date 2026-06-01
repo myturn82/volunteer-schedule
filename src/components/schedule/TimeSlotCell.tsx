@@ -14,6 +14,7 @@ interface Props {
   indicatorBarRoles?: TenantRole[]
   canInteract?: boolean
   onIndicatorBarClick?: () => void
+  withdrawnUserIds?: Set<string>
 }
 
 function getSlotHours(timeSlot: string): number[] {
@@ -46,7 +47,7 @@ const HOLIDAY_STRIPE_STYLE = {
   background: 'repeating-linear-gradient(135deg, transparent 0 8px, oklch(0.96 0.02 25 / 0.6) 8px 16px)',
 } as const
 
-function NameChips({ assignments, highlightName, tintBg, tintInk, teamLeaderUserIds, small, showTimeSub }: {
+function NameChips({ assignments, highlightName, tintBg, tintInk, teamLeaderUserIds, small, showTimeSub, withdrawnUserIds }: {
   assignments: Assignment[]
   highlightName: string | null
   tintBg: string
@@ -54,6 +55,7 @@ function NameChips({ assignments, highlightName, tintBg, tintInk, teamLeaderUser
   teamLeaderUserIds?: Set<string>
   small?: boolean
   showTimeSub?: boolean
+  withdrawnUserIds?: Set<string>
 }) {
   const visible = assignments.filter(a => !teamLeaderUserIds?.has(a.user_id))
   if (!visible.length) return null
@@ -63,12 +65,13 @@ function NameChips({ assignments, highlightName, tintBg, tintInk, teamLeaderUser
     <div className="flex flex-col gap-0.5 w-full px-0.5">
       {visible.map(a => {
         const isHighlighted = !!(highlightName && a.volunteer_name.includes(highlightName))
+        const isWithdrawn = withdrawnUserIds?.has(a.user_id)
         const displayText = a.note ? `${a.volunteer_name}(${a.note})` : a.volunteer_name
         const timeLabel = showTimeSub && a.time_sub ? formatTimeSub(a.time_sub) : null
         return (
           <div
             key={a.id}
-            className={`rounded-[6px] px-1.5 py-0.5 leading-tight ${textSize} font-semibold w-full truncate text-center`}
+            className={`rounded-[6px] px-1.5 py-0.5 leading-tight ${textSize} font-semibold w-full truncate text-center${isWithdrawn ? ' line-through opacity-50' : ''}`}
             style={isHighlighted
               ? { background: '#fef08a', color: '#92400e' }
               : { background: tintBg, color: tintInk }}
@@ -97,7 +100,7 @@ function EmptyHint() {
   )
 }
 
-export function TimeSlotCell({ cellState, timeSlot, colType, onClick, highlightName, teamLeaderUserIds, roleId, indicatorBarRoles, canInteract = true, onIndicatorBarClick }: Props) {
+export function TimeSlotCell({ cellState, timeSlot, colType, onClick, highlightName, teamLeaderUserIds, roleId, indicatorBarRoles, canInteract = true, onIndicatorBarClick, withdrawnUserIds }: Props) {
   const { isBreaktime, isClosed, isHoliday, isSaturdayShift, assignments, isFull } = cellState
   const [slotStart, slotEnd] = timeSlot.split('-').map(Number)
   const cellMinH = slotEnd - slotStart === 1
@@ -172,7 +175,7 @@ export function TimeSlotCell({ cellState, timeSlot, colType, onClick, highlightN
               ) : fullSlotHasBar ? (
                 <span className="absolute left-0 top-0 bottom-0 w-[3px]" style={{ background: INDICATOR_BAR_COLOR }} />
               ) : null}
-              <NameChips assignments={fullSlotRole} highlightName={highlightName} tintBg={tint.bg} tintInk={tint.ink} teamLeaderUserIds={teamLeaderUserIds} showTimeSub />
+              <NameChips assignments={fullSlotRole} highlightName={highlightName} tintBg={tint.bg} tintInk={tint.ink} teamLeaderUserIds={teamLeaderUserIds} showTimeSub withdrawnUserIds={withdrawnUserIds} />
             </button>
           )}
           <div className="flex flex-col divide-y divide-[var(--color-border-table)] flex-1">
@@ -193,7 +196,7 @@ export function TimeSlotCell({ cellState, timeSlot, colType, onClick, highlightN
                     <span className="absolute left-0 top-0 bottom-0 w-[3px]" style={{ background: INDICATOR_BAR_COLOR }} />
                   ) : null}
                   {hourA.length
-                    ? <NameChips assignments={hourA} highlightName={highlightName} tintBg={tint.bg} tintInk={tint.ink} teamLeaderUserIds={teamLeaderUserIds} showTimeSub />
+                    ? <NameChips assignments={hourA} highlightName={highlightName} tintBg={tint.bg} tintInk={tint.ink} teamLeaderUserIds={teamLeaderUserIds} showTimeSub withdrawnUserIds={withdrawnUserIds} />
                     : canInteract && <EmptyHint />
                   }
                 </button>
@@ -219,7 +222,7 @@ export function TimeSlotCell({ cellState, timeSlot, colType, onClick, highlightN
         ) : null}
         {hasAssignments
           ? <>
-              <NameChips assignments={roleAssignments} highlightName={highlightName} tintBg={tint.bg} tintInk={tint.ink} teamLeaderUserIds={teamLeaderUserIds} />
+              <NameChips assignments={roleAssignments} highlightName={highlightName} tintBg={tint.bg} tintInk={tint.ink} teamLeaderUserIds={teamLeaderUserIds} withdrawnUserIds={withdrawnUserIds} />
               {isFull && <span className="text-[7px] sm:text-[9px] font-semibold mt-0.5 px-1.5 py-0.5 rounded-full" style={{ background: 'oklch(0.97 0.02 25)', color: 'oklch(0.55 0.16 25)' }}>마감</span>}
             </>
           : canInteract && <EmptyHint />
@@ -265,7 +268,7 @@ export function TimeSlotCell({ cellState, timeSlot, colType, onClick, highlightN
               ) : fullSlotHasBar ? (
                 <span className="absolute left-0 top-0 bottom-0 w-[3px]" style={{ background: INDICATOR_BAR_COLOR }} />
               ) : null}
-              <NameChips assignments={fullSlotVisible} highlightName={highlightName} tintBg={fullSlotTint.bg} tintInk={fullSlotTint.ink} showTimeSub />
+              <NameChips assignments={fullSlotVisible} highlightName={highlightName} tintBg={fullSlotTint.bg} tintInk={fullSlotTint.ink} showTimeSub withdrawnUserIds={withdrawnUserIds} />
             </button>
           )}
           <div className="flex flex-col divide-y divide-[var(--color-border-table)] flex-1">
@@ -289,7 +292,7 @@ export function TimeSlotCell({ cellState, timeSlot, colType, onClick, highlightN
                     <span className="absolute left-0 top-0 bottom-0 w-[3px]" style={{ background: INDICATOR_BAR_COLOR }} />
                   ) : null}
                   {hourVisible.length
-                    ? <NameChips assignments={hourVisible} highlightName={highlightName} tintBg={hourTint.bg} tintInk={hourTint.ink} teamLeaderUserIds={teamLeaderUserIds} showTimeSub />
+                    ? <NameChips assignments={hourVisible} highlightName={highlightName} tintBg={hourTint.bg} tintInk={hourTint.ink} teamLeaderUserIds={teamLeaderUserIds} showTimeSub withdrawnUserIds={withdrawnUserIds} />
                     : canInteract && <EmptyHint />
                   }
                 </button>
@@ -316,7 +319,7 @@ export function TimeSlotCell({ cellState, timeSlot, colType, onClick, highlightN
         ) : null}
         {hasAssign
           ? <>
-              <NameChips assignments={visibleAssignments} highlightName={highlightName} tintBg={cellTint.bg} tintInk={cellTint.ink} teamLeaderUserIds={teamLeaderUserIds} />
+              <NameChips assignments={visibleAssignments} highlightName={highlightName} tintBg={cellTint.bg} tintInk={cellTint.ink} teamLeaderUserIds={teamLeaderUserIds} withdrawnUserIds={withdrawnUserIds} />
               {isFull && <span className="text-[7px] sm:text-[9px] font-semibold mt-0.5 px-1.5 py-0.5 rounded-full" style={{ background: 'oklch(0.97 0.02 25)', color: 'oklch(0.55 0.16 25)' }}>마감</span>}
             </>
           : canInteract && <EmptyHint />
@@ -341,7 +344,7 @@ export function TimeSlotCell({ cellState, timeSlot, colType, onClick, highlightN
               style={{ background: hourPlus.length ? plusTint.bg : 'var(--color-surface)' }}
             >
               {hourPlus.length
-                ? <NameChips assignments={hourPlus} highlightName={highlightName} tintBg={plusTint.bg} tintInk={plusTint.ink} teamLeaderUserIds={teamLeaderUserIds} small />
+                ? <NameChips assignments={hourPlus} highlightName={highlightName} tintBg={plusTint.bg} tintInk={plusTint.ink} teamLeaderUserIds={teamLeaderUserIds} small withdrawnUserIds={withdrawnUserIds} />
                 : canInteract && <EmptyHint />
               }
             </button>
@@ -357,7 +360,7 @@ export function TimeSlotCell({ cellState, timeSlot, colType, onClick, highlightN
       style={{ background: hasPlusAssign ? plusTint.bg : 'var(--color-surface)' }}
     >
       {hasPlusAssign
-        ? <NameChips assignments={plusAssignments} highlightName={highlightName} tintBg={plusTint.bg} tintInk={plusTint.ink} teamLeaderUserIds={teamLeaderUserIds} small />
+        ? <NameChips assignments={plusAssignments} highlightName={highlightName} tintBg={plusTint.bg} tintInk={plusTint.ink} teamLeaderUserIds={teamLeaderUserIds} small withdrawnUserIds={withdrawnUserIds} />
         : canInteract && <EmptyHint />
       }
     </button>

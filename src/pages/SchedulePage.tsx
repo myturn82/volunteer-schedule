@@ -62,6 +62,12 @@ export function SchedulePage() {
     return (a: Assignment) => a.user_id === (profile?.id ?? '')
   }, [tenantMode, isPrivileged, filterMemberId, profile?.id])
 
+  const withdrawnUserIds = useMemo(() => new Set(
+    memberships
+      .filter(m => m.tenant_id === tenant?.id && m.withdrawal_status === 'approved')
+      .map(m => m.user_id)
+  ), [memberships, tenant?.id])
+
   useEffect(() => {
     if (!authLoading && !profile) setShowLogin(true)
     if (profile) setShowLogin(false)
@@ -340,6 +346,7 @@ export function SchedulePage() {
                   ? (d, startHour, endHour) => setHolidayTarget({ day: d, startHour, endHour })
                   : undefined}
                 displayAssignmentFilter={displayAssignmentFilter}
+                withdrawnUserIds={withdrawnUserIds}
               />
             ) : viewType === 'week' ? (
               <WeekGrid
@@ -365,6 +372,7 @@ export function SchedulePage() {
                 }}
                 onCellClick={handleCellClick}
                 displayAssignmentFilter={displayAssignmentFilter}
+                withdrawnUserIds={withdrawnUserIds}
               />
             ) : (
               <DayView
@@ -378,6 +386,7 @@ export function SchedulePage() {
                 slotLabels={slotLabels}
                 onCellClick={handleCellClick}
                 displayAssignmentFilter={displayAssignmentFilter}
+                withdrawnUserIds={withdrawnUserIds}
               />
             )}
           </div>

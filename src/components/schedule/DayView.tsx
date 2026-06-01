@@ -27,11 +27,12 @@ interface Props {
   slotLabels?: Record<string, string>
   onCellClick: (target: ModalTarget) => void
   displayAssignmentFilter?: (a: Assignment) => boolean
+  withdrawnUserIds?: Set<string>
 }
 
 export function DayView({
   year, month, day, timeSlots, assignments, slotSettings, scheduleRules, dateOverrides,
-  profile: _profile, splitRoles = [], isSplitMode = false, slotLabels = {}, onCellClick, displayAssignmentFilter,
+  profile: _profile, splitRoles = [], isSplitMode = false, slotLabels = {}, onCellClick, displayAssignmentFilter, withdrawnUserIds,
 }: Props) {
   const dow = new Date(year, month - 1, day).getDay()
 
@@ -116,7 +117,7 @@ export function DayView({
                     <div key={role.id}>
                       <div className="text-[10px] text-[var(--color-text-muted)] font-medium mb-0.5">{role.name}</div>
                       {roleAssigns.length > 0 ? roleAssigns.map(a => (
-                        <div key={a.id} className="flex items-center gap-2 text-xs text-[var(--color-text-primary)] ml-2">
+                        <div key={a.id} className={`flex items-center gap-2 text-xs text-[var(--color-text-primary)] ml-2${withdrawnUserIds?.has(a.user_id) ? ' line-through opacity-50' : ''}`}>
                           <span className="font-medium">{a.volunteer_name}</span>
                           {a.customer_phone && <span className="text-[var(--color-text-muted)]">· {a.customer_phone}</span>}
                           {a.note && <span className="text-[var(--color-text-muted)]">· {a.note}</span>}
@@ -131,7 +132,7 @@ export function DayView({
             ) : visible.length > 0 ? (
               <div className="flex flex-col gap-1">
                 {visible.map(a => (
-                  <div key={a.id} className="flex items-center gap-2 text-xs text-[var(--color-text-primary)]">
+                  <div key={a.id} className={`flex items-center gap-2 text-xs text-[var(--color-text-primary)]${withdrawnUserIds?.has(a.user_id) ? ' line-through opacity-50' : ''}`}>
                     <span className="w-1 h-1 rounded-full bg-[var(--color-brand-primary)] shrink-0 mt-px" />
                     <span className="font-medium">{a.volunteer_name}</span>
                     {a.note && <span className="text-[var(--color-text-muted)]">· {a.note}</span>}

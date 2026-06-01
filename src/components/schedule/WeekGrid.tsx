@@ -39,13 +39,14 @@ interface Props {
   teamLeaderUserIds?: Set<string>
   isPrivileged?: boolean
   displayAssignmentFilter?: (a: Assignment) => boolean
+  withdrawnUserIds?: Set<string>
 }
 
 export function WeekGrid({
   weekDays, timeSlots, assignments, slotSettings, scheduleRules, dateOverrides,
   highlightName, splitRoles = [], indicatorBarRoles = [], isSplitMode = false, slotLabels = {},
   selectedDay, onDateHeaderClick, onCellClick,
-  memberRoleId, teamLeaderUserIds, isPrivileged = false, displayAssignmentFilter,
+  memberRoleId, teamLeaderUserIds, isPrivileged = false, displayAssignmentFilter, withdrawnUserIds,
 }: Props) {
   const today = new Date()
   const activeRoles = isSplitMode && splitRoles.length > 0 ? splitRoles : []
@@ -208,10 +209,11 @@ export function WeekGrid({
                               roleAssigns.map(a => {
                                 const isHighlighted = !!(highlightName && a.volunteer_name.includes(highlightName))
                                 const timeLbl = a.time_sub ? formatTimeSub(a.time_sub) : null
+                                const isWithdrawn = withdrawnUserIds?.has(a.user_id)
                                 return (
                                   <div
                                     key={a.id}
-                                    className="w-full rounded-md px-1 py-0.5 text-[8px] sm:text-[10px] font-semibold text-center"
+                                    className={`w-full rounded-md px-1 py-0.5 text-[8px] sm:text-[10px] font-semibold text-center${isWithdrawn ? ' line-through opacity-50' : ''}`}
                                     style={isHighlighted
                                       ? { background: '#fef08a', color: '#92400e' }
                                       : { background: tint.bg, color: tint.ink }}
@@ -254,10 +256,11 @@ export function WeekGrid({
                       visibleAssigns.map(a => {
                         const isHighlighted = !!(highlightName && a.volunteer_name.includes(highlightName))
                         const timeLbl = a.time_sub ? formatTimeSub(a.time_sub) : null
+                        const isWithdrawn = withdrawnUserIds?.has(a.user_id)
                         return (
                           <div
                             key={a.id}
-                            className="w-full rounded-md px-1 py-0.5 text-[8px] sm:text-[10px] font-semibold text-center"
+                            className={`w-full rounded-md px-1 py-0.5 text-[8px] sm:text-[10px] font-semibold text-center${isWithdrawn ? ' line-through opacity-50' : ''}`}
                             style={isHighlighted
                               ? { background: '#fef08a', color: '#92400e' }
                               : { background: tint.bg, color: tint.ink }}
