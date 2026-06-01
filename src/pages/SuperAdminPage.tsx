@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { buildSlot, parseSlotLabel, SLOT_TEMPLATES } from '../utils/timeSlots'
-import type { Tenant } from '../types'
+import type { Tenant, TenantMode } from '../types'
 
 // ─── Time select helpers ───────────────────────────────────────────────────────
 
@@ -124,11 +124,17 @@ interface CreateForm {
   business_type: string
   title: string
   theme_color: string
-  tenant_mode: '직접입력' | '회원선택'
+  tenant_mode: TenantMode
 }
 
-const EMPTY_FORM: CreateForm = { slug: '', name: '', business_type: '', title: '', theme_color: '', tenant_mode: '회원선택' }
+const EMPTY_FORM: CreateForm = { slug: '', name: '', business_type: '', title: '', theme_color: '', tenant_mode: '회원공유' }
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+
+function displayMode(raw: string | undefined): TenantMode {
+  if (raw === '회원선택') return '회원공유'
+  if (raw === '직접입력') return '비회원'
+  return (raw as TenantMode) ?? '회원공유'
+}
 
 // ─── SuperAdminPage ───────────────────────────────────────────────────────────
 
@@ -157,6 +163,11 @@ export function SuperAdminPage() {
   const [editName, setEditName]           = useState('')
   const [nameSaving, setNameSaving]       = useState(false)
   const [deletingSaving, setDeletingSaving] = useState(false)
+
+  // Slug edit state
+  const [editingSlugId, setEditingSlugId] = useState<string | null>(null)
+  const [editSlug, setEditSlug]           = useState('')
+  const [slugSaving, setSlugSaving]       = useState(false)
 
   // Pending admin approvals
   const [pendingAdmins, setPendingAdmins] = useState<import('../types').Profile[]>([])
@@ -242,6 +253,28 @@ export function SuperAdminPage() {
     setNameSaving(false)
   }
 
+  async function saveSlug(tenant: Tenant) {
+    const slug = editSlug.trim()
+    if (!slug) return
+    if (!SLUG_RE.test(slug)) { setMessage('오류: Slug는 소문자 영문·숫자와 하이픈(-)만 사용할 수 있습니다.'); return }
+    if (tenants.some(t => t.id !== tenant.id && t.slug === slug)) { setMessage('오류: 이미 사용 중인 Slug입니다.'); return }
+    setSlugSaving(true)
+    const { data, error } = await supabase
+      .from('tenants')
+      .update({ slug, updated_at: new Date().toISOString() })
+      .eq('id', tenant.id)
+      .select()
+      .single()
+    if (error) {
+      setMessage(`오류: ${error.message}`)
+    } else if (data) {
+      setTenants(prev => prev.map(t => t.id === tenant.id ? data : t))
+      setEditingSlugId(null)
+      setMessage('Slug가 수정됐습니다.')
+    }
+    setSlugSaving(false)
+  }
+
   async function deleteTenant(tenant: Tenant) {
     if (!window.confirm(`"${tenant.name}" 조직을 삭제하시겠습니까?\n\n모든 데이터(배정·규칙·멤버)가 함께 삭제됩니다.`)) return
     setDeletingSaving(true)
@@ -253,23 +286,6 @@ export function SuperAdminPage() {
       setMessage('조직이 삭제됐습니다.')
     }
     setDeletingSaving(false)
-  }
-
-  async function saveMode(tenant: Tenant, newMode: '직접입력' | '회원선택') {
-    setModeSaving(true)
-    const { data, error } = await supabase
-      .from('tenants')
-      .update({ settings: { ...tenant.settings, tenant_mode: newMode } })
-      .eq('id', tenant.id)
-      .select()
-      .single()
-    if (error) {
-      setMessage(`오류: ${error.message}`)
-    } else if (data) {
-      setTenants(prev => prev.map(t => t.id === tenant.id ? data : t))
-      setMessage('모드가 변경됐습니다.')
-    }
-    setModeSaving(false)
   }
 
   const createTenant = useCallback(async (e: React.FormEvent) => {
@@ -457,7 +473,7 @@ export function SuperAdminPage() {
             <div>
               <label className="block text-xs text-[var(--color-text-secondary)] mb-2">운영 모드</label>
               <div className="flex gap-3">
-                {(['회원선택', '직접입력'] as const).map(mode => (
+                {(['회원공유', '회원개별', '비회원'] as const).map(mode => (
                   <label key={mode} className="flex items-center gap-1.5 cursor-pointer">
                     <input
                       type="radio"
@@ -467,7 +483,7 @@ export function SuperAdminPage() {
                       onChange={() => setForm(prev => ({ ...prev, tenant_mode: mode }))}
                       className="accent-[var(--color-brand-primary)]"
                     />
-                    <span className="text-sm text-[var(--color-text-primary)]">{mode}모드</span>
+                    <span className="text-sm text-[var(--color-text-secondary)]">{mode}</span>
                   </label>
                 ))}
               </div>
@@ -521,13 +537,36 @@ export function SuperAdminPage() {
                     </div>
                   ) : (
                     <button
-                      onClick={() => { setEditingNameId(t.id); setEditName(t.name) }}
+                      onClick={() => { setEditingNameId(t.id); setEditName(t.name); setEditingSlugId(null) }}
                       className="font-semibold text-[var(--color-text-primary)] hover:text-[var(--color-brand-primary)] text-left"
                     >
                       {t.name}
                     </button>
                   )}
-                  <span className="ml-2 text-xs text-[var(--color-text-secondary)] font-mono">{t.slug}</span>
+                  {editingSlugId === t.id ? (
+                    <span className="ml-2 inline-flex items-center gap-1">
+                      <input
+                        value={editSlug}
+                        onChange={e => setEditSlug(e.target.value)}
+                        className="text-xs font-mono px-2 py-0.5 rounded-lg border border-[var(--color-border-strong)] bg-[var(--color-surface)] text-[var(--color-text-primary)] w-32 focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-primary)]/30 focus:border-[var(--color-brand-primary)]"
+                        onKeyDown={e => { if (e.key === 'Enter') saveSlug(t); if (e.key === 'Escape') setEditingSlugId(null) }}
+                        autoFocus
+                      />
+                      <button onClick={() => saveSlug(t)} disabled={slugSaving}
+                        className="px-1.5 py-0.5 text-xs bg-[var(--color-brand-primary)] text-white rounded-lg hover:bg-[var(--color-brand-primary-hover)] disabled:opacity-40">
+                        {slugSaving ? '...' : '저장'}
+                      </button>
+                      <button onClick={() => setEditingSlugId(null)}
+                        className="px-1.5 py-0.5 text-xs border border-[var(--color-border-strong)] text-[var(--color-text-secondary)] rounded-lg hover:bg-[var(--color-surface-hover)]">취소</button>
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => { setEditingSlugId(t.id); setEditSlug(t.slug); setEditingNameId(null) }}
+                      className="ml-2 text-xs text-[var(--color-text-secondary)] font-mono hover:text-[var(--color-brand-primary)] transition-colors"
+                    >
+                      {t.slug}
+                    </button>
+                  )}
                   {t.settings?.time_slots?.length ? (
                     <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">
                       슬롯 {t.settings.time_slots.length}개
@@ -536,17 +575,27 @@ export function SuperAdminPage() {
                 </div>
                 <div className="flex items-center gap-1.5 flex-wrap">
                   {t.business_type && <span className="text-xs text-[var(--color-text-secondary)] hidden sm:inline">{t.business_type}</span>}
-                  <button
+                  <select
+                    value={displayMode(t.settings?.tenant_mode)}
                     disabled={modeSaving}
-                    onClick={() => saveMode(t, t.settings?.tenant_mode === '직접입력' ? '회원선택' : '직접입력')}
-                    className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-colors ${
-                      t.settings?.tenant_mode === '직접입력'
-                        ? 'border-orange-400 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20'
-                        : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]'
-                    }`}
+                    onChange={async e => {
+                      setModeSaving(true)
+                      const newMode = e.target.value as TenantMode
+                      const { data, error } = await supabase
+                        .from('tenants')
+                        .update({ settings: { ...t.settings, tenant_mode: newMode } })
+                        .eq('id', t.id)
+                        .select()
+                        .single()
+                      if (!error && data) setTenants(prev => prev.map(x => x.id === t.id ? data : x))
+                      setModeSaving(false)
+                    }}
+                    className="px-2 py-1 text-xs border border-[var(--color-border)] rounded-lg bg-[var(--color-surface)] text-[var(--color-text-secondary)] disabled:opacity-40"
                   >
-                    {t.settings?.tenant_mode === '직접입력' ? '직접입력' : '회원선택'}
-                  </button>
+                    <option value="회원공유">회원공유</option>
+                    <option value="회원개별">회원개별</option>
+                    <option value="비회원">비회원</option>
+                  </select>
                   <button
                     onClick={() => editingId === t.id ? setEditingId(null) : startEdit(t)}
                     className="px-2.5 py-1 text-xs font-medium border border-[var(--color-border)] text-[var(--color-text-secondary)] rounded-lg hover:bg-[var(--color-surface-hover)] transition-colors"
