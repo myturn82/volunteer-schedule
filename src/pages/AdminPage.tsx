@@ -70,6 +70,11 @@ export function AdminPage() {
   const [showAddMember, setShowAddMember] = useState(false)
   const [addEmail, setAddEmail] = useState('')
 
+  // 회원 선호 설정 (자동배정)
+  const [expandedPrefUserId, setExpandedPrefUserId] = useState<string | null>(null)
+  const [prefDays, setPrefDays] = useState<number[]>([])
+  const [prefLimit, setPrefLimit] = useState<string>('')
+
   // 직접 등록 (이메일 인증 없이 테스트 계정 생성)
   const [showDirectCreate, setShowDirectCreate] = useState(false)
   const [directForm, setDirectForm] = useState({ email: '', name: '', password: '', roleId: '' })
@@ -399,6 +404,22 @@ export function AdminPage() {
     setShowDirectCreate(false)
   }
 
+  async function saveMemberPreference(
+    userId: string,
+    availableDays: number[] | null,
+    monthlyLimit: number | null
+  ): Promise<string | null> {
+    const { error } = await supabase
+      .from('tenant_members')
+      .update({ available_days: availableDays, monthly_limit: monthlyLimit })
+      .eq('tenant_id', adminTenantId)
+      .eq('user_id', userId)
+    if (!error) {
+      await reloadMembers()
+    }
+    return error?.message ?? null
+  }
+
   async function handleAddRole(e: React.FormEvent) {
     e.preventDefault()
     const trimmedName = newRoleName.trim()
@@ -662,58 +683,129 @@ export function AdminPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--color-border)]">
-                      {members.map(m => (
-                        <tr key={m.user_id} className="hover:bg-[var(--color-surface-hover)]">
-                          <td className="px-4 py-3 font-medium text-[var(--color-text-primary)]">
-                            {m.profile?.name ?? '-'}
-                            {m.user_id === profile.id && <span className="ml-1.5 text-xs text-[var(--color-text-muted)]">(나)</span>}
-                          </td>
-                          <td className="px-4 py-3 text-[var(--color-text-muted)] hidden sm:table-cell text-xs">{m.profile?.email ?? '-'}</td>
-                          <td className="px-4 py-3">
-                            <select
-                              value={m.role_id ?? ''}
-                              onChange={async e => {
-                                const err = await updateMemberTenantRole(m.user_id, e.target.value || null)
-                                if (err) msg(err, true)
-                              }}
-                              className="text-xs border border-[var(--color-border-strong)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] rounded px-1.5 py-1 focus:outline-none focus:ring-1 focus:ring-[var(--color-brand-primary)]/30"
-                            >
-                              <option value="">미지정</option>
-                              {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                            </select>
-                          </td>
-                          <td className="px-4 py-3">
-                            {m.user_id !== profile.id ? (
+                      {members.filter(m => m.is_approved).map(m => (
+                        <>
+                          <tr key={m.user_id} className="hover:bg-[var(--color-surface-hover)]">
+                            <td className="px-4 py-3 font-medium text-[var(--color-text-primary)]">
+                              {m.profile?.name ?? '-'}
+                              {m.user_id === profile.id && <span className="ml-1.5 text-xs text-[var(--color-text-muted)]">(나)</span>}
+                            </td>
+                            <td className="px-4 py-3 text-[var(--color-text-muted)] hidden sm:table-cell text-xs">{m.profile?.email ?? '-'}</td>
+                            <td className="px-4 py-3">
                               <select
-                                value={m.role}
+                                value={m.role_id ?? ''}
                                 onChange={async e => {
-                                  const err = await updateMemberAccess(m.user_id, e.target.value as TenantAccessRole)
+                                  const err = await updateMemberTenantRole(m.user_id, e.target.value || null)
                                   if (err) msg(err, true)
                                 }}
                                 className="text-xs border border-[var(--color-border-strong)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] rounded px-1.5 py-1 focus:outline-none focus:ring-1 focus:ring-[var(--color-brand-primary)]/30"
                               >
-                                <option value="member">멤버</option>
-                                <option value="admin">관리자</option>
+                                <option value="">미지정</option>
+                                {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                               </select>
-                            ) : (
-                              <span className="text-xs text-[var(--color-text-muted)]">{m.role === 'admin' ? '관리자' : '멤버'}</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3">
-                            {m.user_id !== profile.id && (
-                              <button
-                                onClick={async () => {
-                                  if (!confirm(`${m.profile?.name} 회원을 삭제할까요?`)) return
-                                  const err = await removeMember(m.user_id)
-                                  if (err) msg(err, true)
-                                }}
-                                className="px-2 py-1 text-xs text-red-600 border border-red-200 rounded hover:bg-red-50"
-                              >
-                                삭제
-                              </button>
-                            )}
-                          </td>
-                        </tr>
+                            </td>
+                            <td className="px-4 py-3">
+                              {m.user_id !== profile.id ? (
+                                <select
+                                  value={m.role}
+                                  onChange={async e => {
+                                    const err = await updateMemberAccess(m.user_id, e.target.value as TenantAccessRole)
+                                    if (err) msg(err, true)
+                                  }}
+                                  className="text-xs border border-[var(--color-border-strong)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] rounded px-1.5 py-1 focus:outline-none focus:ring-1 focus:ring-[var(--color-brand-primary)]/30"
+                                >
+                                  <option value="member">멤버</option>
+                                  <option value="admin">관리자</option>
+                                </select>
+                              ) : (
+                                <span className="text-xs text-[var(--color-text-muted)]">{m.role === 'admin' ? '관리자' : '멤버'}</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex gap-2 items-center flex-wrap">
+                                {/* 자동배정 설정 버튼 */}
+                                <button
+                                  onClick={() => {
+                                    if (expandedPrefUserId === m.user_id) {
+                                      setExpandedPrefUserId(null)
+                                      return
+                                    }
+                                    setExpandedPrefUserId(m.user_id)
+                                    setPrefDays(m.available_days ?? [])
+                                    setPrefLimit(m.monthly_limit?.toString() ?? '')
+                                  }}
+                                  className="px-2 py-1 text-[10px] border border-[var(--color-border)] rounded-lg text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)]"
+                                >
+                                  자동배정 설정
+                                </button>
+                                {m.user_id !== profile.id && (
+                                  <button
+                                    onClick={async () => {
+                                      if (!confirm(`${m.profile?.name} 회원을 삭제할까요?`)) return
+                                      const err = await removeMember(m.user_id)
+                                      if (err) msg(err, true)
+                                    }}
+                                    className="px-2 py-1 text-xs text-red-600 border border-red-200 rounded hover:bg-red-50"
+                                  >
+                                    삭제
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                          {/* 인라인 패널 */}
+                          {expandedPrefUserId === m.user_id && (
+                            <tr key={`${m.user_id}-pref`}>
+                              <td colSpan={5} className="px-4 pb-3">
+                                <div className="mt-2 p-3 rounded-xl bg-[var(--color-surface-secondary)] border border-[var(--color-border)] space-y-3">
+                                  {/* 가능 요일 */}
+                                  <div>
+                                    <p className="text-[10px] font-semibold text-[var(--color-text-muted)] mb-1.5">가능 요일 (미선택 = 모든 요일)</p>
+                                    <div className="flex gap-2">
+                                      {['일','월','화','수','목','금','토'].map((label, idx) => (
+                                        <label key={idx} className="flex flex-col items-center gap-0.5 cursor-pointer">
+                                          <input
+                                            type="checkbox"
+                                            checked={prefDays.includes(idx)}
+                                            onChange={() => setPrefDays(prev =>
+                                              prev.includes(idx) ? prev.filter(d => d !== idx) : [...prev, idx].sort((a,b) => a-b)
+                                            )}
+                                            className="accent-[var(--color-brand-primary)]"
+                                          />
+                                          <span className="text-[10px] text-[var(--color-text-secondary)]">{label}</span>
+                                        </label>
+                                      ))}
+                                    </div>
+                                  </div>
+                                  {/* 월별 횟수 제한 */}
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[10px] font-semibold text-[var(--color-text-muted)]">월별 최대 횟수</span>
+                                    <input
+                                      type="number" min={1} max={99}
+                                      value={prefLimit}
+                                      onChange={e => setPrefLimit(e.target.value)}
+                                      placeholder="제한없음"
+                                      className="w-16 border border-[var(--color-border-strong)] rounded-lg px-2 py-1 text-xs text-center bg-[var(--color-surface)] text-[var(--color-text-primary)] focus:outline-none"
+                                    />
+                                    <span className="text-[10px] text-[var(--color-text-muted)]">회 (빈칸=무제한)</span>
+                                  </div>
+                                  {/* 저장 */}
+                                  <button
+                                    onClick={async () => {
+                                      const days = prefDays.length === 0 ? null : prefDays
+                                      const limit = prefLimit ? parseInt(prefLimit, 10) : null
+                                      const err = await saveMemberPreference(m.user_id, days, limit)
+                                      if (!err) setExpandedPrefUserId(null)
+                                    }}
+                                    className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--color-brand-primary)] text-white hover:bg-[var(--color-brand-primary-hover)]"
+                                  >
+                                    저장
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </>
                       ))}
                     </tbody>
                   </table>
