@@ -62,13 +62,6 @@ export function SchedulePage() {
     return (a: Assignment) => a.user_id === (profile?.id ?? '')
   }, [tenantMode, isPrivileged, filterMemberId, profile?.id])
 
-  const withdrawnUserIds = useMemo(() => new Set(
-    memberships
-      .filter(m => m.tenant_id === tenant?.id && m.withdrawal_status === 'approved')
-      .map(m => m.user_id)
-  ), [memberships, tenant?.id])
-
-
   useEffect(() => {
     if (!authLoading && !profile) setShowLogin(true)
     if (profile) setShowLogin(false)
@@ -102,6 +95,17 @@ export function SchedulePage() {
   const splitRoles = tenantRoles.filter(r => r.split_cell && !r.indicator_bar)
   const indicatorBarRoles = tenantRoles.filter(r => r.indicator_bar)
   const isSplitMode = splitRoles.length > 0
+
+  const withdrawnUserIds = useMemo(() => {
+    const activeProfileIds = new Set(profiles.map(p => p.id))
+    const withdrawn = memberships
+      .filter(m => m.tenant_id === tenant?.id && m.withdrawal_status === 'approved')
+      .map(m => m.user_id)
+    const deleted = assignments
+      .map(a => a.user_id)
+      .filter((uid): uid is string => !!uid && !activeProfileIds.has(uid))
+    return new Set([...withdrawn, ...deleted])
+  }, [memberships, tenant?.id, profiles, assignments])
   // 역할 배정 모달용: split_cell 또는 indicator_bar가 true인 역할 모두 포함
   const memberTenantRoleName = tenantRoles.find(r => r.id === memberRoleId)?.name ?? null
 

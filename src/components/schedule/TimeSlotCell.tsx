@@ -71,12 +71,15 @@ function NameChips({ assignments, highlightName, tintBg, tintInk, teamLeaderUser
         return (
           <div
             key={a.id}
-            className={`rounded-[6px] px-1.5 py-0.5 leading-tight ${textSize} font-semibold w-full truncate text-center${isWithdrawn ? ' line-through opacity-50' : ''}`}
+            className={`rounded-[6px] px-1.5 py-0.5 leading-tight ${textSize} font-semibold w-full truncate text-center`}
             style={isHighlighted
               ? { background: '#fef08a', color: '#92400e' }
-              : { background: tintBg, color: tintInk }}
+              : isWithdrawn
+                ? { background: 'oklch(0.97 0.02 25)', color: 'oklch(0.55 0.16 25)', opacity: 0.85 }
+                : { background: tintBg, color: tintInk }}
           >
-            {displayText}
+            <span style={isWithdrawn ? { textDecoration: 'line-through' } : undefined}>{displayText}</span>
+            {isWithdrawn && <span className={`block ${subSize} font-normal`}>삭제됨</span>}
             {timeLabel && (
               <span className={`block ${subSize} font-normal opacity-60`}>{timeLabel}</span>
             )}
