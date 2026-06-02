@@ -89,8 +89,9 @@ export function SlotEditModal({
 
   const { profiles } = useProfiles()
 
+  const lockedProfile = lockedUserId ? profiles.find(p => p.id === lockedUserId) ?? null : null
   const selectedProfile = isAdmin
-    ? profiles.find(p => p.id === selectedUserId) ?? null
+    ? (lockedProfile ?? profiles.find(p => p.id === selectedUserId) ?? null)
     : profile
 
   const effectiveVolunteerType: VolunteerType = isAdmin
