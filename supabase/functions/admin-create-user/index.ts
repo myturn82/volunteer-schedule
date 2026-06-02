@@ -70,8 +70,17 @@ Deno.serve(async (req) => {
     if (existingProfile) {
       // 기존 유저 — 비밀번호 갱신 후 tenant_members에 추가
       userId = existingProfile.id
-      const { error: pwErr } = await supabaseAdmin.auth.admin.updateUserById(userId, { password })
-      if (pwErr) return json({ error: '비밀번호 갱신 오류: ' + pwErr.message }, 200, corsHeaders)
+      const { error: pwErr } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+        password,
+        user_metadata: { name },
+      })
+      if (pwErr) return json({ error: '정보 갱신 오류: ' + pwErr.message }, 200, corsHeaders)
+
+      const { error: profileUpdateErr } = await supabaseAdmin
+        .from('profiles')
+        .update({ name })
+        .eq('id', userId)
+      if (profileUpdateErr) return json({ error: '프로필 갱신 오류: ' + profileUpdateErr.message }, 200, corsHeaders)
     } else {
       // 신규 유저 생성
       const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
