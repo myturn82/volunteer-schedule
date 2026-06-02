@@ -209,7 +209,7 @@ export function AppHeader({ funcMenuItems, leftSlot, memberSelectSlot, rightSlot
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl shadow-lg w-full max-w-xs p-5 space-y-3">
               <h2 className="text-base font-semibold text-[var(--color-text-primary)]">탈퇴 방식 선택</h2>
-              {tenant && (
+              {tenant && memberships.filter(m => m.is_approved).length > 1 && (
                 <button
                   onClick={async () => {
                     setShowWithdrawModal(false)
