@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../hooks/useAuth'
+import { useTenant } from '../contexts/TenantContext'
 import { supabase } from '../lib/supabase'
 
 interface TenantRole { id: string; name: string; display_order: number }
@@ -7,6 +8,7 @@ interface Tenant { id: string; name: string }
 
 export function PendingPage() {
   const { profile, signOut, deleteAccount } = useAuth()
+  const { reloadMemberships } = useTenant()
 
   const [showForm, setShowForm] = useState(false)
   const [tenants, setTenants] = useState<Tenant[]>([])
@@ -298,6 +300,7 @@ export function PendingPage() {
                       setShowWithdrawModal(false)
                       const err = await deleteAccount(withdrawTenantId)
                       if (err) alert(err)
+                      else await reloadMemberships()
                     }}
                     className="w-full px-4 py-3 text-left rounded-xl border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >

@@ -18,9 +18,11 @@ interface TenantContextValue {
   slotLabels: Record<string, string>
   legendItems: LegendItem[]
   customFields: CustomFieldDef[]
+  typeLabels: { volunteer: string; '50plus': string }
   alreadyMemberNotice: string | null
   setTenant: (tenant: Tenant, role: TenantAccessRole) => void
   resetTenantSelection: () => void
+  reloadMemberships: () => Promise<void>
   updateCurrentTenant: (tenant: Tenant) => void
   clearAlreadyMemberNotice: () => void
 }
@@ -121,6 +123,16 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     setTenantSelectedByUser(false)
   }
 
+  async function reloadMemberships() {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.user) {
+      setTenantState(null)
+      setTenantRole(null)
+      setTenantSelectedByUser(false)
+      await fetchMemberships(session.user.id)
+    }
+  }
+
   function clearAlreadyMemberNotice() {
     setAlreadyMemberNotice(null)
   }
@@ -157,6 +169,11 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     [tenant]
   )
 
+  const typeLabels = useMemo(() => ({
+    volunteer: tenant?.settings?.volunteer_label ?? '자원봉사자',
+    '50plus': tenant?.settings?.plus_label ?? '50플러스활동가',
+  }), [tenant])
+
   return (
     <TenantContext.Provider value={{
       tenant,
@@ -168,10 +185,12 @@ export function TenantProvider({ children }: { children: ReactNode }) {
       slotLabels,
       legendItems,
       customFields,
+      typeLabels,
       alreadyMemberNotice,
       clearAlreadyMemberNotice,
       setTenant,
       resetTenantSelection,
+      reloadMemberships,
       updateCurrentTenant,
     }}>
       {children}

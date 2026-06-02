@@ -18,7 +18,7 @@ interface AppHeaderProps {
 export function AppHeader({ funcMenuItems, leftSlot, memberSelectSlot, rightSlot, roleLabel, onShowLogin }: AppHeaderProps) {
   const navigate = useNavigate()
   const { profile, signOut, deleteAccount, linkGoogle, linkKakao, getIdentities } = useAuth()
-  const { tenant, tenantRole, memberships, resetTenantSelection } = useTenant()
+  const { tenant, tenantRole, memberships, resetTenantSelection, reloadMemberships } = useTenant()
   const [showFuncMenu, setShowFuncMenu] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
@@ -215,6 +215,7 @@ export function AppHeader({ funcMenuItems, leftSlot, memberSelectSlot, rightSlot
                     setShowWithdrawModal(false)
                     const err = await deleteAccount(tenant.id)
                     if (err) alert(err)
+                    else await reloadMemberships()
                   }}
                   className="w-full px-4 py-3 text-left rounded-xl border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] transition-colors"
                 >
