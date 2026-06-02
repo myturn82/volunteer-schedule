@@ -13,7 +13,7 @@ interface AuthState {
   linkKakao: () => Promise<string | null>
   getIdentities: () => Promise<{ provider: string }[]>
   signOut: () => Promise<void>
-  deleteAccount: () => Promise<string | null>
+  deleteAccount: (tenantId?: string) => Promise<string | null>
 }
 
 export function useAuth(): AuthState {
@@ -112,14 +112,15 @@ export function useAuth(): AuthState {
     await supabase.auth.signOut()
   }, [])
 
-  const deleteAccount = useCallback(async (): Promise<string | null> => {
+  const deleteAccount = useCallback(async (tenantId?: string): Promise<string | null> => {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) return '로그인이 필요합니다.'
     const { data, error } = await supabase.functions.invoke('delete-account', {
       headers: { Authorization: `Bearer ${session.access_token}` },
+      body: tenantId ? { tenant_id: tenantId } : undefined,
     })
     if (error || data?.error) return data?.error ?? error?.message ?? '오류가 발생했습니다.'
-    await supabase.auth.signOut()
+    if (!tenantId) await supabase.auth.signOut()
     return null
   }, [])
 

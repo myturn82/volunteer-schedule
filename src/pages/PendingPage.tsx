@@ -1,16 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
-import { ConfirmDialog } from '../components/shared/ConfirmDialog'
 
 interface TenantRole { id: string; name: string; display_order: number }
 interface Tenant { id: string; name: string }
-
-const DEFAULT_ROLES = [
-  { value: 'volunteer',   label: '자원봉사자' },
-  { value: '50plus',      label: '50플러스' },
-  { value: 'team_leader', label: '팀장' },
-]
 
 export function PendingPage() {
   const { profile, signOut, deleteAccount } = useAuth()
@@ -23,11 +16,13 @@ export function PendingPage() {
   const [tenantRoles, setTenantRoles] = useState<TenantRole[] | null>(null)
   const [tenantRoleId, setTenantRoleId] = useState<string | null>(null)
   const [defaultRole, setDefaultRole] = useState<string | null>(null)
+  const [tenantTypeLabels, setTenantTypeLabels] = useState<{ volunteer: string; '50plus': string } | null>(null)
 
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false)
+  const [withdrawTenantId, setWithdrawTenantId] = useState('')
 
   interface MyMembership { tenant_id: string; is_approved: boolean; tenant: { name: string } | null }
   const [memberships, setMemberships] = useState<MyMembership[] | null>(null)
@@ -63,18 +58,29 @@ export function PendingPage() {
     setTenantRoles(null)
     setTenantRoleId(null)
     setDefaultRole(null)
+    setTenantTypeLabels(null)
     setError(null)
     if (!tenantId) return
-    supabase
-      .from('tenant_roles')
-      .select('id, name, display_order')
-      .eq('tenant_id', tenantId)
-      .order('display_order')
-      .then(({ data }) => setTenantRoles(data ?? []))
+    Promise.all([
+      supabase.from('tenant_roles').select('id, name, display_order').eq('tenant_id', tenantId).order('display_order'),
+      supabase.from('tenants').select('settings').eq('id', tenantId).single(),
+    ]).then(([{ data: roles }, { data: tenantData }]) => {
+      setTenantRoles(roles ?? [])
+      const s = (tenantData as { settings?: { volunteer_label?: string; plus_label?: string } } | null)?.settings
+      setTenantTypeLabels({
+        volunteer: s?.volunteer_label ?? '자원봉사자',
+        '50plus': s?.plus_label ?? '50플러스',
+      })
+    })
   }, [tenantId])
 
   const isAdminRole = profile?.is_super_admin
   const hasCustomRoles = tenantRoles !== null && tenantRoles.length > 0
+  const effectiveDefaultRoles = [
+    { value: 'volunteer', label: tenantTypeLabels?.volunteer ?? '자원봉사자' },
+    { value: '50plus', label: tenantTypeLabels?.['50plus'] ?? '50플러스' },
+    { value: 'team_leader', label: '팀장' },
+  ]
 
   const waitMessage = hasPending
     ? isAdminRole
@@ -211,7 +217,7 @@ export function PendingPage() {
                       </div>
                     ) : (
                       <div className="grid grid-cols-3 gap-1.5">
-                        {DEFAULT_ROLES.map(r => (
+                        {effectiveDefaultRoles.map(r => (
                           <button key={r.value} type="button"
                             onClick={() => { setDefaultRole(r.value); setTenantRoleId(null) }}
                             className={roleBtn(defaultRole === r.value)}>
@@ -255,7 +261,10 @@ export function PendingPage() {
             로그아웃
           </button>
           <button
-            onClick={() => setShowDeleteConfirm(true)}
+            onClick={() => {
+              setWithdrawTenantId(pendingOrgs.length === 1 ? pendingOrgs[0].tenant_id : '')
+              setShowWithdrawModal(true)
+            }}
             className="px-4 py-2 text-sm border border-red-200 dark:border-red-800/40 rounded-xl text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
           >
             회원탈퇴
@@ -263,20 +272,60 @@ export function PendingPage() {
         </div>
       </div>
 
-      {showDeleteConfirm && (
-        <ConfirmDialog
-          title="회원탈퇴"
-          message={`정말 탈퇴하시겠습니까?\n탈퇴 후 모든 데이터가 삭제되며\n동일한 이메일로 재가입이 가능합니다.`}
-          confirmLabel="탈퇴하기"
-          cancelLabel="취소"
-          danger
-          onCancel={() => setShowDeleteConfirm(false)}
-          onConfirm={async () => {
-            setShowDeleteConfirm(false)
-            const err = await deleteAccount()
-            if (err) alert(err)
-          }}
-        />
+      {showWithdrawModal && (
+        <>
+          <div className="fixed inset-0 z-50 bg-black/40" onClick={() => setShowWithdrawModal(false)} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl shadow-lg w-full max-w-xs p-5 space-y-3">
+              <h2 className="text-base font-semibold text-[var(--color-text-primary)]">탈퇴 방식 선택</h2>
+              {pendingOrgs.length > 0 && (
+                <div className="space-y-2">
+                  {pendingOrgs.length > 1 && (
+                    <select
+                      value={withdrawTenantId}
+                      onChange={e => setWithdrawTenantId(e.target.value)}
+                      className="w-full border border-[var(--color-border-strong)] rounded-xl px-3 py-2 text-sm bg-[var(--color-surface-secondary)] text-[var(--color-text-primary)] focus:outline-none"
+                    >
+                      <option value="">조직 선택</option>
+                      {pendingOrgs.map(m => (
+                        <option key={m.tenant_id} value={m.tenant_id}>{m.tenant?.name ?? m.tenant_id}</option>
+                      ))}
+                    </select>
+                  )}
+                  <button
+                    disabled={!withdrawTenantId}
+                    onClick={async () => {
+                      setShowWithdrawModal(false)
+                      const err = await deleteAccount(withdrawTenantId)
+                      if (err) alert(err)
+                    }}
+                    className="w-full px-4 py-3 text-left rounded-xl border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <p className="text-sm font-medium text-[var(--color-text-primary)]">현재 조직 탈퇴</p>
+                    <p className="text-xs text-[var(--color-text-muted)] mt-0.5">선택한 조직의 가입 신청을 취소합니다.</p>
+                  </button>
+                </div>
+              )}
+              <button
+                onClick={async () => {
+                  setShowWithdrawModal(false)
+                  const err = await deleteAccount()
+                  if (err) alert(err)
+                }}
+                className="w-full px-4 py-3 text-left rounded-xl border border-red-200 dark:border-red-800/40 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
+              >
+                <p className="text-sm font-medium text-red-600 dark:text-red-400">전체 계정 삭제</p>
+                <p className="text-xs text-red-400 dark:text-red-500 mt-0.5">모든 조직에서 탈퇴하고 계정을 완전히 삭제합니다.</p>
+              </button>
+              <button
+                onClick={() => setShowWithdrawModal(false)}
+                className="w-full py-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors"
+              >
+                취소
+              </button>
+            </div>
+          </div>
+        </>
       )}
     </div>
   )

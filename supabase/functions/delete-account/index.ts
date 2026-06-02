@@ -3,7 +3,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 function getCorsHeaders(req: Request) {
   const origin = req.headers.get('origin') ?? ''
   const allowed = (Deno.env.get('ALLOWED_ORIGINS') ?? '').split(',').map(s => s.trim()).filter(Boolean)
-  const isAllowed = allowed.length === 0 || allowed.includes(origin)
+  const isLocalhost = /^https?:\/\/localhost(:\d+)?$/.test(origin)
+  const isAllowed = allowed.length === 0 || allowed.includes(origin) || isLocalhost
   return {
     'Access-Control-Allow-Origin': isAllowed ? origin : 'null',
     'Vary': 'Origin',
@@ -34,19 +35,29 @@ Deno.serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     )
 
-    const supabaseUser = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
-    )
-
-    const { data: { user }, error: userErr } = await supabaseUser.auth.getUser()
+    const token = authHeader.replace(/^Bearer\s+/i, '')
+    const { data: { user }, error: userErr } = await supabaseAdmin.auth.getUser(token)
     if (userErr || !user) return json({ error: '인증 실패' }, 401, corsHeaders)
 
-    await supabaseAdmin.from('tenant_members').delete().eq('user_id', user.id)
+    // tenant_id가 있으면 조직별 탈퇴, 없으면 전체 계정 삭제
+    let tenantId: string | null = null
+    try {
+      const body = await req.json()
+      tenantId = body?.tenant_id ?? null
+    } catch { /* body 없음 */ }
 
-    const { error } = await supabaseAdmin.auth.admin.deleteUser(user.id)
-    if (error) return json({ error: '계정 삭제에 실패했습니다.' }, 500, corsHeaders)
+    if (tenantId) {
+      const { error } = await supabaseAdmin
+        .from('tenant_members')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('tenant_id', tenantId)
+      if (error) return json({ error: '조직 탈퇴에 실패했습니다.' }, 500, corsHeaders)
+    } else {
+      await supabaseAdmin.from('tenant_members').delete().eq('user_id', user.id)
+      const { error } = await supabaseAdmin.auth.admin.deleteUser(user.id)
+      if (error) return json({ error: '계정 삭제에 실패했습니다.' }, 500, corsHeaders)
+    }
 
     return json({ success: true }, 200, corsHeaders)
   } catch (_err) {

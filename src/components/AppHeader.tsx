@@ -5,7 +5,6 @@ import { useTenant } from '../contexts/TenantContext'
 import { DashboardNav } from './DashboardNav'
 import { ProfileModal } from './auth/ProfileModal'
 import { JoinOrgModal } from './modals/JoinOrgModal'
-import { ConfirmDialog } from './shared/ConfirmDialog'
 
 interface AppHeaderProps {
   funcMenuItems?: (closeMenu: () => void) => React.ReactNode
@@ -19,12 +18,12 @@ interface AppHeaderProps {
 export function AppHeader({ funcMenuItems, leftSlot, memberSelectSlot, rightSlot, roleLabel, onShowLogin }: AppHeaderProps) {
   const navigate = useNavigate()
   const { profile, signOut, deleteAccount, linkGoogle, linkKakao, getIdentities } = useAuth()
-  const { tenantRole, memberships, resetTenantSelection } = useTenant()
+  const { tenant, tenantRole, memberships, resetTenantSelection } = useTenant()
   const [showFuncMenu, setShowFuncMenu] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
   const [showJoinOrg, setShowJoinOrg] = useState(false)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false)
   const [joinSuccessMsg, setJoinSuccessMsg] = useState<string | null>(null)
 
   const isPrivileged = profile?.is_super_admin || tenantRole === 'admin'
@@ -162,7 +161,7 @@ export function AppHeader({ funcMenuItems, leftSlot, memberSelectSlot, rightSlot
                     로그아웃
                   </span>
                 </button>
-                <button onClick={() => { setShowDeleteConfirm(true); setShowUserMenu(false) }} className={menuBtn}>
+                <button onClick={() => { setShowWithdrawModal(true); setShowUserMenu(false) }} className={menuBtn}>
                   <span className="flex items-center gap-2.5">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" y1="8" x2="23" y2="14"/><line x1="23" y1="8" x2="17" y2="14"/></svg>
                     회원탈퇴
@@ -204,20 +203,45 @@ export function AppHeader({ funcMenuItems, leftSlot, memberSelectSlot, rightSlot
         />
       )}
 
-      {showDeleteConfirm && (
-        <ConfirmDialog
-          title="회원탈퇴"
-          message={`정말 탈퇴하시겠습니까?\n탈퇴 후 모든 데이터가 삭제되며\n동일한 이메일로 재가입이 가능합니다.`}
-          confirmLabel="탈퇴하기"
-          cancelLabel="취소"
-          danger
-          onCancel={() => setShowDeleteConfirm(false)}
-          onConfirm={async () => {
-            setShowDeleteConfirm(false)
-            const err = await deleteAccount()
-            if (err) alert(err)
-          }}
-        />
+      {showWithdrawModal && (
+        <>
+          <div className="fixed inset-0 z-50 bg-black/40" onClick={() => setShowWithdrawModal(false)} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl shadow-lg w-full max-w-xs p-5 space-y-3">
+              <h2 className="text-base font-semibold text-[var(--color-text-primary)]">탈퇴 방식 선택</h2>
+              {tenant && (
+                <button
+                  onClick={async () => {
+                    setShowWithdrawModal(false)
+                    const err = await deleteAccount(tenant.id)
+                    if (err) alert(err)
+                  }}
+                  className="w-full px-4 py-3 text-left rounded-xl border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] transition-colors"
+                >
+                  <p className="text-sm font-medium text-[var(--color-text-primary)]">현재 조직 탈퇴</p>
+                  <p className="text-xs text-[var(--color-text-muted)] mt-0.5">{tenant.name}에서만 탈퇴합니다. 계정은 유지됩니다.</p>
+                </button>
+              )}
+              <button
+                onClick={async () => {
+                  setShowWithdrawModal(false)
+                  const err = await deleteAccount()
+                  if (err) alert(err)
+                }}
+                className="w-full px-4 py-3 text-left rounded-xl border border-red-200 dark:border-red-800/40 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
+              >
+                <p className="text-sm font-medium text-red-600 dark:text-red-400">전체 계정 삭제</p>
+                <p className="text-xs text-red-400 dark:text-red-500 mt-0.5">모든 조직에서 탈퇴하고 계정을 완전히 삭제합니다.</p>
+              </button>
+              <button
+                onClick={() => setShowWithdrawModal(false)}
+                className="w-full py-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors"
+              >
+                취소
+              </button>
+            </div>
+          </div>
+        </>
       )}
     </>
   )
