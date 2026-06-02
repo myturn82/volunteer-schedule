@@ -91,7 +91,7 @@ function roundRobin(
   const countMap = new Map<string, number>()
   members.forEach(m => countMap.set(m.id, 0))
   existingAssignments.forEach(a => {
-    if (countMatchFn(a) && countMap.has(a.user_id)) {
+    if (a.user_id && countMatchFn(a) && countMap.has(a.user_id)) {
       countMap.set(a.user_id, (countMap.get(a.user_id) ?? 0) + 1)
     }
   })

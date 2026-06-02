@@ -117,7 +117,7 @@ export function DayView({
                     <div key={role.id}>
                       <div className="text-[10px] text-[var(--color-text-muted)] font-medium mb-0.5">{role.name}</div>
                       {roleAssigns.length > 0 ? roleAssigns.map(a => {
-                        const isW = withdrawnUserIds?.has(a.user_id)
+                        const isW = !a.user_id || withdrawnUserIds?.has(a.user_id)
                         return (
                         <div key={a.id} className="flex items-center gap-2 text-xs ml-2" style={isW ? { color: 'oklch(0.55 0.16 25)', opacity: 0.85 } : { color: 'var(--color-text-primary)' }}>
                           <span className="font-medium" style={isW ? { textDecoration: 'line-through' } : undefined}>{a.volunteer_name}</span>
@@ -136,7 +136,7 @@ export function DayView({
             ) : visible.length > 0 ? (
               <div className="flex flex-col gap-1">
                 {visible.map(a => {
-                  const isW = withdrawnUserIds?.has(a.user_id)
+                  const isW = !a.user_id || withdrawnUserIds?.has(a.user_id)
                   return (
                   <div key={a.id} className="flex items-center gap-2 text-xs" style={isW ? { color: 'oklch(0.55 0.16 25)', opacity: 0.85 } : { color: 'var(--color-text-primary)' }}>
                     <span className="w-1 h-1 rounded-full shrink-0 mt-px" style={{ background: isW ? 'oklch(0.55 0.16 25)' : 'var(--color-brand-primary)' }} />

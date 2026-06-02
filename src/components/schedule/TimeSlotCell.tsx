@@ -57,7 +57,7 @@ function NameChips({ assignments, highlightName, tintBg, tintInk, teamLeaderUser
   showTimeSub?: boolean
   withdrawnUserIds?: Set<string>
 }) {
-  const visible = assignments.filter(a => !teamLeaderUserIds?.has(a.user_id))
+  const visible = assignments.filter(a => !(a.user_id && teamLeaderUserIds?.has(a.user_id ?? '')))
   if (!visible.length) return null
   const textSize = small ? 'text-[6px] sm:text-[9px]' : 'text-[8px] sm:text-[11px]'
   const subSize = small ? 'text-[5px]' : 'text-[6px] sm:text-[8px]'
@@ -65,7 +65,7 @@ function NameChips({ assignments, highlightName, tintBg, tintInk, teamLeaderUser
     <div className="flex flex-col gap-0.5 w-full px-0.5">
       {visible.map(a => {
         const isHighlighted = !!(highlightName && a.volunteer_name.includes(highlightName))
-        const isWithdrawn = withdrawnUserIds?.has(a.user_id)
+        const isWithdrawn = !a.user_id || withdrawnUserIds?.has(a.user_id)
         const displayText = a.note ? `${a.volunteer_name}(${a.note})` : a.volunteer_name
         const timeLabel = showTimeSub && a.time_sub ? formatTimeSub(a.time_sub) : null
         return (
@@ -162,7 +162,7 @@ export function TimeSlotCell({ cellState, timeSlot, colType, onClick, highlightN
 
     if (shouldSplitRole) {
       const fullSlotRole = roleAssignments.filter(a => !a.time_sub || a.time_sub.includes('~'))
-      const fullSlotHasBar = fullSlotRole.some(a => indicatorBarUserIds.has(a.user_id))
+      const fullSlotHasBar = fullSlotRole.some(a => indicatorBarUserIds.has(a.user_id ?? ''))
       return (
         <div className="flex flex-col h-full">
           {fullSlotRole.length > 0 && (
@@ -184,7 +184,7 @@ export function TimeSlotCell({ cellState, timeSlot, colType, onClick, highlightN
           <div className="flex flex-col divide-y divide-[var(--color-border-table)] flex-1">
             {slotHours.map(hour => {
               const hourA = roleAssignments.filter(a => a.time_sub && !a.time_sub.includes('~') && assignmentCoversHour(a.time_sub, hour))
-              const hourHasBar = assignments.filter(a => assignmentCoversHour(a.time_sub, hour)).some(a => indicatorBarUserIds.has(a.user_id))
+              const hourHasBar = assignments.filter(a => assignmentCoversHour(a.time_sub, hour)).some(a => indicatorBarUserIds.has(a.user_id ?? ''))
               return (
                 <button key={hour} onClick={onClick}
                   className={`relative flex-1 min-h-[1rem] flex flex-col items-center justify-center transition-all duration-150 active:scale-[0.98] group`}
@@ -238,7 +238,7 @@ export function TimeSlotCell({ cellState, timeSlot, colType, onClick, highlightN
   const volunteerAssignments = assignments.filter(a => !a.volunteer_type || a.volunteer_type === 'volunteer')
   const plusAssignments = assignments.filter(a => a.volunteer_type === '50plus')
   const saturdayAssignments = isSaturdayShift ? [...volunteerAssignments, ...plusAssignments] : volunteerAssignments
-  const hasTeamLeaderInVol = !!(teamLeaderUserIds && volunteerAssignments.some(a => teamLeaderUserIds.has(a.user_id)))
+  const hasTeamLeaderInVol = !!(teamLeaderUserIds && volunteerAssignments.some(a => teamLeaderUserIds.has(a.user_id ?? '')))
 
   const teamLeaderTint = { bg: 'oklch(0.95 0.07 85)', ink: 'oklch(0.42 0.12 80)' }
 
@@ -246,15 +246,15 @@ export function TimeSlotCell({ cellState, timeSlot, colType, onClick, highlightN
 
   if (colType === 'vol') {
     const activeTint = hasTeamLeaderInVol ? teamLeaderTint : effectiveTint
-    const visibleAssignments = saturdayAssignments.filter(a => !teamLeaderUserIds?.has(a.user_id) && !indicatorBarUserIds.has(a.user_id))
+    const visibleAssignments = saturdayAssignments.filter(a => !teamLeaderUserIds?.has(a.user_id ?? '') && !indicatorBarUserIds.has(a.user_id ?? ''))
     const hasAssign = visibleAssignments.length > 0
     const shouldSplit = slotHours.length === 2 && saturdayAssignments.some(a => a.time_sub && !a.time_sub.includes('~'))
 
     if (shouldSplit) {
       const fullSlotVol = saturdayAssignments.filter(a => !a.time_sub || a.time_sub.includes('~'))
-      const fullSlotHasLeader = !!(teamLeaderUserIds && fullSlotVol.some(a => teamLeaderUserIds.has(a.user_id)))
-      const fullSlotHasBar = fullSlotVol.some(a => indicatorBarUserIds.has(a.user_id))
-      const fullSlotVisible = fullSlotVol.filter(a => !teamLeaderUserIds?.has(a.user_id) && !indicatorBarUserIds.has(a.user_id))
+      const fullSlotHasLeader = !!(teamLeaderUserIds && fullSlotVol.some(a => teamLeaderUserIds.has(a.user_id ?? '')))
+      const fullSlotHasBar = fullSlotVol.some(a => indicatorBarUserIds.has(a.user_id ?? ''))
+      const fullSlotVisible = fullSlotVol.filter(a => !teamLeaderUserIds?.has(a.user_id ?? '') && !indicatorBarUserIds.has(a.user_id ?? ''))
       const fullSlotTint = fullSlotHasLeader ? teamLeaderTint : effectiveTint
       return (
         <div className="flex flex-col h-full">
@@ -277,9 +277,9 @@ export function TimeSlotCell({ cellState, timeSlot, colType, onClick, highlightN
           <div className="flex flex-col divide-y divide-[var(--color-border-table)] flex-1">
             {slotHours.map(hour => {
               const hourVol = saturdayAssignments.filter(a => a.time_sub && !a.time_sub.includes('~') && assignmentCoversHour(a.time_sub, hour))
-              const hourHasLeader = !!(teamLeaderUserIds && hourVol.some(a => teamLeaderUserIds.has(a.user_id)))
-              const hourHasBar = hourVol.some(a => indicatorBarUserIds.has(a.user_id))
-              const hourVisible = hourVol.filter(a => !teamLeaderUserIds?.has(a.user_id) && !indicatorBarUserIds.has(a.user_id))
+              const hourHasLeader = !!(teamLeaderUserIds && hourVol.some(a => teamLeaderUserIds.has(a.user_id ?? '')))
+              const hourHasBar = hourVol.some(a => indicatorBarUserIds.has(a.user_id ?? ''))
+              const hourVisible = hourVol.filter(a => !teamLeaderUserIds?.has(a.user_id ?? '') && !indicatorBarUserIds.has(a.user_id ?? ''))
               const hourTint = hourHasLeader ? teamLeaderTint : hourHasBar && !hourVisible.length ? indicatorTint : effectiveTint
               return (
                 <button key={hour} onClick={onClick}

@@ -135,7 +135,7 @@ export interface Assignment {
   volunteer_type: VolunteerType;
   time_sub: string | null;
   color: string | null;
-  user_id: string;
+  user_id: string | null;
   role_id: string | null;
   customer_name: string | null;
   customer_phone: string | null;

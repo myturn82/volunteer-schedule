@@ -187,7 +187,7 @@ export function WeekGrid({
                       )}
                       {activeRoles.map((role, ri) => {
                         const roleAssigns = displayCs.assignments.filter(
-                          a => a.role_id === role.id && !teamLeaderUserIds?.has(a.user_id)
+                          a => a.role_id === role.id && !(a.user_id && teamLeaderUserIds?.has(a.user_id))
                         )
                         const canClick = isAdmin || memberRoleId === role.id
                         const tint = ROLE_TINTS[ri % ROLE_TINTS.length]
@@ -209,7 +209,7 @@ export function WeekGrid({
                               roleAssigns.map(a => {
                                 const isHighlighted = !!(highlightName && a.volunteer_name.includes(highlightName))
                                 const timeLbl = a.time_sub ? formatTimeSub(a.time_sub) : null
-                                const isWithdrawn = withdrawnUserIds?.has(a.user_id)
+                                const isWithdrawn = !a.user_id || withdrawnUserIds?.has(a.user_id)
                                 return (
                                   <div
                                     key={a.id}
@@ -239,7 +239,7 @@ export function WeekGrid({
                 // ── Non-split mode: single cell ──
                 const hasBar = displayCs.assignments.some(a => a.role_id && indicatorBarRoleIds.has(a.role_id))
                 const visibleAssigns = displayCs.assignments.filter(
-                  a => a.volunteer_type !== 'admin_note' && !teamLeaderUserIds?.has(a.user_id) && !indicatorBarRoleIds.has(a.role_id ?? '')
+                  a => a.volunteer_type !== 'admin_note' && !(a.user_id && teamLeaderUserIds?.has(a.user_id)) && !indicatorBarRoleIds.has(a.role_id ?? '')
                 )
                 const tint = isMoon
                   ? { bg: 'var(--tint-moon)', ink: 'var(--tint-moon-ink)' }
@@ -259,7 +259,7 @@ export function WeekGrid({
                       visibleAssigns.map(a => {
                         const isHighlighted = !!(highlightName && a.volunteer_name.includes(highlightName))
                         const timeLbl = a.time_sub ? formatTimeSub(a.time_sub) : null
-                        const isWithdrawn = withdrawnUserIds?.has(a.user_id)
+                        const isWithdrawn = !a.user_id || withdrawnUserIds?.has(a.user_id)
                         return (
                           <div
                             key={a.id}
