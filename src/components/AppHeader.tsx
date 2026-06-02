@@ -10,12 +10,13 @@ import { ConfirmDialog } from './shared/ConfirmDialog'
 interface AppHeaderProps {
   funcMenuItems?: (closeMenu: () => void) => React.ReactNode
   leftSlot?: React.ReactNode
+  memberSelectSlot?: React.ReactNode
   rightSlot?: React.ReactNode
   roleLabel?: string
   onShowLogin?: () => void
 }
 
-export function AppHeader({ funcMenuItems, leftSlot, rightSlot, roleLabel, onShowLogin }: AppHeaderProps) {
+export function AppHeader({ funcMenuItems, leftSlot, memberSelectSlot, rightSlot, roleLabel, onShowLogin }: AppHeaderProps) {
   const navigate = useNavigate()
   const { profile, signOut, deleteAccount, linkGoogle, linkKakao, getIdentities } = useAuth()
   const { tenantRole, memberships, resetTenantSelection } = useTenant()
@@ -24,6 +25,7 @@ export function AppHeader({ funcMenuItems, leftSlot, rightSlot, roleLabel, onSho
   const [showProfile, setShowProfile] = useState(false)
   const [showJoinOrg, setShowJoinOrg] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [joinSuccessMsg, setJoinSuccessMsg] = useState<string | null>(null)
 
   const isPrivileged = profile?.is_super_admin || tenantRole === 'admin'
   const showHamburger = isPrivileged && (!!profile?.is_super_admin || !!funcMenuItems)
@@ -36,7 +38,7 @@ export function AppHeader({ funcMenuItems, leftSlot, rightSlot, roleLabel, onSho
       <div className="relative bg-[var(--color-surface)] border-b border-[var(--color-border)]">
         <div className="flex items-center justify-between gap-2 px-3 py-3 sm:px-5">
 
-          {/* Left: hamburger + leftSlot */}
+          {/* Left: hamburger + leftSlot + memberSelectSlot */}
           <div className="flex items-center gap-1.5">
             {showHamburger && (
               <button
@@ -51,6 +53,7 @@ export function AppHeader({ funcMenuItems, leftSlot, rightSlot, roleLabel, onSho
               </button>
             )}
             {leftSlot}
+            {memberSelectSlot}
           </div>
 
           {/* Right: rightSlot + name/badge + avatar */}
@@ -171,6 +174,13 @@ export function AppHeader({ funcMenuItems, leftSlot, rightSlot, roleLabel, onSho
         )}
       </div>
 
+      {joinSuccessMsg && (
+        <div className="flex items-center justify-between gap-2 px-4 py-2.5 bg-green-50 dark:bg-green-950/30 border-b border-green-200 dark:border-green-800 text-sm text-green-700 dark:text-green-300">
+          <span>{joinSuccessMsg}</span>
+          <button onClick={() => setJoinSuccessMsg(null)} className="shrink-0 opacity-60 hover:opacity-100 text-base leading-none">✕</button>
+        </div>
+      )}
+
       {isPrivileged && <DashboardNav />}
 
       {showProfile && profile && (
@@ -187,7 +197,10 @@ export function AppHeader({ funcMenuItems, leftSlot, rightSlot, roleLabel, onSho
         <JoinOrgModal
           userId={profile.id}
           onClose={() => setShowJoinOrg(false)}
-          onSuccess={() => setShowJoinOrg(false)}
+          onSuccess={() => {
+            setShowJoinOrg(false)
+            setJoinSuccessMsg('가입 신청이 완료됐습니다. 관리자 승인 후 이용하실 수 있습니다.')
+          }}
         />
       )}
 
