@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, Fragment } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useAdmin } from '../hooks/useAdmin'
@@ -705,8 +705,8 @@ export function AdminPage() {
                     </thead>
                     <tbody className="divide-y divide-[var(--color-border)]">
                       {members.filter(m => m.is_approved).map(m => (
-                        <>
-                          <tr key={m.user_id} className="hover:bg-[var(--color-surface-hover)]">
+                        <Fragment key={m.user_id}>
+                          <tr className="hover:bg-[var(--color-surface-hover)]">
                             <td className="px-4 py-3 font-medium text-[var(--color-text-primary)]">
                               {m.profile?.name ?? '-'}
                               {m.user_id === profile.id && <span className="ml-1.5 text-xs text-[var(--color-text-muted)]">(나)</span>}
@@ -776,7 +776,7 @@ export function AdminPage() {
                           </tr>
                           {/* 인라인 패널 */}
                           {expandedPrefUserId === m.user_id && (
-                            <tr key={`${m.user_id}-pref`}>
+                            <tr>
                               <td colSpan={5} className="px-4 pb-3">
                                 <div className="mt-2 p-3 rounded-xl bg-[var(--color-surface-secondary)] border border-[var(--color-border)] space-y-3">
                                   {/* 가능 요일 */}
@@ -826,7 +826,7 @@ export function AdminPage() {
                               </td>
                             </tr>
                           )}
-                        </>
+                        </Fragment>
                       ))}
                     </tbody>
                   </table>
