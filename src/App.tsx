@@ -62,7 +62,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={
-        tenantRole === 'admin' ? <Navigate to="/dashboard" replace /> : <SchedulePage />
+        <Navigate to="/schedule" replace />
       } />
       <Route path="/schedule" element={<SchedulePage />} />
       <Route path="/dashboard" element={

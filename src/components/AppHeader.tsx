@@ -27,7 +27,7 @@ export function AppHeader({ funcMenuItems, leftSlot, memberSelectSlot, rightSlot
   const [joinSuccessMsg, setJoinSuccessMsg] = useState<string | null>(null)
 
   const isPrivileged = profile?.is_super_admin || tenantRole === 'admin'
-  const showHamburger = isPrivileged && (!!profile?.is_super_admin || !!funcMenuItems)
+  const showHamburger = !!isPrivileged
 
   const menuBtn = 'w-full text-left px-3 py-2 text-sm rounded-xl text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors'
   const sep = <div className="h-px bg-[var(--color-border)] mx-1 my-1" />
@@ -116,7 +116,7 @@ export function AppHeader({ funcMenuItems, leftSlot, memberSelectSlot, rightSlot
                 <button onClick={() => { navigate('/admin'); setShowFuncMenu(false) }} className={menuBtn}>
                   <span className="flex items-center gap-2.5">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
-                    관리자대시보드
+                    관리자콘솔
                   </span>
                 </button>
                 {funcMenuItems && sep}

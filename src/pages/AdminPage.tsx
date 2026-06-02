@@ -98,8 +98,7 @@ export function AdminPage() {
   const [settingsName, setSettingsName] = useState('')
   const [settingsTitle, setSettingsTitle] = useState('')
   const [settingsTheme, setSettingsTheme] = useState('')
-  const [settingsVolunteerLabel, setSettingsVolunteerLabel] = useState('')
-  const [settingsPlusLabel, setSettingsPlusLabel] = useState('')
+
   const [slotLabels, setSlotLabels] = useState<Record<string, string>>({})
   const [roleRatios, setRoleRatios] = useState<Record<string, number>>({})
   const [ratioSaving, setRatioSaving] = useState(false)
@@ -131,8 +130,7 @@ export function AdminPage() {
     setSettingsName(adminTenant.name)
     setSettingsTitle(s.title ?? '')
     setSettingsTheme(s.theme_color ?? '')
-    setSettingsVolunteerLabel(s.volunteer_label ?? '')
-    setSettingsPlusLabel(s.plus_label ?? '')
+
     setSlotLabels(s.slot_labels ?? {})
     setRoleRatios(s.role_ratios ?? {})
     setLegendItems(s.legend_items ?? [])
@@ -499,8 +497,6 @@ export function AdminPage() {
       updateTenantSettings(adminTenant.id, {
         title: settingsTitle.trim(),
         theme_color: settingsTheme.trim() || undefined,
-        volunteer_label: settingsVolunteerLabel.trim() || undefined,
-        plus_label: settingsPlusLabel.trim() || undefined,
         time_slots: slotList,
         slot_interval_minutes: hasHalf ? 30 : 60,
         slot_labels: slotLabels,
@@ -519,8 +515,6 @@ export function AdminPage() {
           title: settingsTitle.trim(),
           time_slots: slotList,
           theme_color: settingsTheme.trim() || undefined,
-          volunteer_label: settingsVolunteerLabel.trim() || undefined,
-          plus_label: settingsPlusLabel.trim() || undefined,
           slot_interval_minutes: hasHalf ? 30 : 60,
           slot_labels: slotLabels,
           legend_items: legendItems,
@@ -730,23 +724,23 @@ export function AdminPage() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="bg-[var(--color-surface-secondary)] border-b border-[var(--color-border)]">
-                        <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)]">이름</th>
-                        <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] hidden sm:table-cell">이메일</th>
-                        <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)]">역할</th>
-                        <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)]">접근권한</th>
-                        <th className="px-4 py-3"></th>
+                        <th className="text-center px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)]">이름</th>
+                        <th className="text-center px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] hidden sm:table-cell">이메일</th>
+                        <th className="text-center px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)]">역할</th>
+                        <th className="text-center px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)]">접근권한</th>
+                        <th className="text-center px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)]">자동배정 · 삭제</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--color-border)]">
                       {members.filter(m => m.is_approved).map(m => (
                         <Fragment key={m.user_id}>
                           <tr className="hover:bg-[var(--color-surface-hover)]">
-                            <td className="px-4 py-3 font-medium text-[var(--color-text-primary)]">
+                            <td className="px-4 py-3 font-medium text-[var(--color-text-primary)] text-center">
                               {m.profile?.name ?? '-'}
                               {m.user_id === profile.id && <span className="ml-1.5 text-xs text-[var(--color-text-muted)]">(나)</span>}
                             </td>
-                            <td className="px-4 py-3 text-[var(--color-text-muted)] hidden sm:table-cell text-xs">{m.profile?.email ?? '-'}</td>
-                            <td className="px-4 py-3">
+                            <td className="px-4 py-3 text-[var(--color-text-muted)] hidden sm:table-cell text-xs text-center">{m.profile?.email ?? '-'}</td>
+                            <td className="px-4 py-3 text-center">
                               <select
                                 value={m.role_id ?? ''}
                                 onChange={async e => {
@@ -759,7 +753,7 @@ export function AdminPage() {
                                 {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                               </select>
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="px-4 py-3 text-center">
                               {m.user_id !== profile.id ? (
                                 <select
                                   value={m.role}
@@ -777,7 +771,7 @@ export function AdminPage() {
                               )}
                             </td>
                             <td className="px-4 py-3">
-                              <div className="flex gap-1.5 items-center">
+                              <div className="flex gap-1.5 items-center justify-center">
                                 {/* 자동배정 설정 버튼 */}
                                 <button
                                   onClick={() => {
@@ -1255,14 +1249,6 @@ export function AdminPage() {
                     <label className="block text-xs text-[var(--color-text-muted)] mb-1">테마 색상 (#RRGGBB, 선택)</label>
                     <input type="text" value={settingsTheme} onChange={e => setSettingsTheme(e.target.value)} placeholder="#2563eb" maxLength={7} className={inputCls + ' w-full'} />
                   </div>
-                  <div>
-                    <label className="block text-xs text-[var(--color-text-muted)] mb-1">자원봉사자 역할 레이블 (기본: 자원봉사자)</label>
-                    <input type="text" value={settingsVolunteerLabel} onChange={e => setSettingsVolunteerLabel(e.target.value)} placeholder="자원봉사자" maxLength={20} className={inputCls + ' w-full'} />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-[var(--color-text-muted)] mb-1">50플러스 역할 레이블 (기본: 50플러스활동가)</label>
-                    <input type="text" value={settingsPlusLabel} onChange={e => setSettingsPlusLabel(e.target.value)} placeholder="50플러스활동가" maxLength={20} className={inputCls + ' w-full'} />
-                  </div>
                 </div>
 
                 <div className="bg-[var(--color-surface)] rounded-xl shadow p-5 space-y-4">
@@ -1314,7 +1300,7 @@ export function AdminPage() {
                           <span className="text-sm text-[var(--color-text-secondary)] whitespace-nowrap shrink-0">{parseSlotLabel(slot)}</span>
                           <input
                             type="text"
-                            placeholder="레이블 (예: 햇님타임)"
+                            placeholder="레이블 (예: 점심시간)"
                             value={slotLabels[slot] ?? ''}
                             onChange={e => setSlotLabels(prev => {
                               const next = { ...prev }
@@ -1481,7 +1467,7 @@ export function AdminPage() {
                         type="text"
                         value={newLegendLabel}
                         onChange={e => setNewLegendLabel(e.target.value)}
-                        placeholder="햇님타임 (10~18시)"
+                        placeholder="점심시간 (10~18시)"
                         maxLength={50}
                         className={inputCls + ' w-full'}
                       />
