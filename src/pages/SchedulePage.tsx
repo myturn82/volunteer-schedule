@@ -22,7 +22,7 @@ import { HolidayNoteModal } from '../components/modals/HolidayNoteModal'
 import { ConfirmDialog } from '../components/shared/ConfirmDialog'
 import { AutoAssignPreviewModal } from '../components/modals/AutoAssignPreviewModal'
 import { computeAutoAssignments } from '../utils/autoAssign'
-import type { ProposedAssignment, MemberPreference } from '../utils/autoAssign'
+import type { ProposedAssignment } from '../utils/autoAssign'
 import type { ModalTarget, ViewType, TenantMode, Assignment } from '../types'
 
 export function SchedulePage() {
@@ -68,18 +68,6 @@ export function SchedulePage() {
       .map(m => m.user_id)
   ), [memberships, tenant?.id])
 
-  const memberPreferences = useMemo(() => {
-    const map = new Map<string, MemberPreference>()
-    for (const m of memberships) {
-      if (m.tenant_id === tenant?.id) {
-        map.set(m.user_id, {
-          availableDays: m.available_days,
-          monthlyLimit: m.monthly_limit,
-        })
-      }
-    }
-    return map
-  }, [memberships, tenant?.id])
 
   useEffect(() => {
     if (!authLoading && !profile) setShowLogin(true)
@@ -108,7 +96,7 @@ export function SchedulePage() {
   const { assignments: primaryAssignments, slotSettings, scheduleRules, dateOverrides, loading, addAssignment, updateAssignment, deleteAssignment, clearAssignments, updateSlotCapacity } = useSchedule(tenant?.id ?? '', year, month)
   const { assignments: adjAssignments, clearAssignments: clearAdjAssignments } = useSchedule(needsAdj ? (tenant?.id ?? '') : '', adjYear, adjMonth)
   const assignments = needsAdj ? [...primaryAssignments, ...adjAssignments] : primaryAssignments
-  const { profiles } = useProfiles()
+  const { profiles, memberPreferences } = useProfiles()
   const teamLeaderUserIds = new Set<string>()
   const { roles: tenantRoles } = useTenantRoles(tenant?.id ?? '')
   const splitRoles = tenantRoles.filter(r => r.split_cell && !r.indicator_bar)
@@ -116,6 +104,19 @@ export function SchedulePage() {
   const isSplitMode = splitRoles.length > 0
   // 역할 배정 모달용: split_cell 또는 indicator_bar가 true인 역할 모두 포함
   const memberTenantRoleName = tenantRoles.find(r => r.id === memberRoleId)?.name ?? null
+
+  const memberSelectEl = tenantMode === '회원개별' && isPrivileged ? (
+    <select
+      value={filterMemberId ?? ''}
+      onChange={e => setFilterMemberId(e.target.value || null)}
+      className="px-2 py-1 text-xs border border-[var(--color-border)] rounded-lg bg-[var(--color-surface)] text-[var(--color-text-secondary)]"
+    >
+      <option value="">전체 회원</option>
+      {profiles.map(p => (
+        <option key={p.id} value={p.id}>{p.name}</option>
+      ))}
+    </select>
+  ) : null
 
   const filledCount = useMemo(
     () => assignments.filter(a => a.volunteer_type !== 'admin_note').length,
@@ -172,6 +173,7 @@ export function SchedulePage() {
   }
 
   function handleAutoAssign() {
+    if (!isPrivileged) return
     if (tenantMode === '비회원') return
     const proposals = computeAutoAssignments({
       days: getTargetDays(),
@@ -211,6 +213,7 @@ export function SchedulePage() {
 
     if (
       tenantMode !== '비회원' &&
+      tenantMode !== '회원개별' &&
       !isPrivileged &&
       profile &&
       !getTimeSubOptions(target.timeSlot)
@@ -268,6 +271,7 @@ export function SchedulePage() {
     <div className="min-h-[100dvh] bg-[var(--color-bg)]">
       <AppHeader
         leftSlot={<FilterBar value={highlightName} onChange={setHighlightName} />}
+        memberSelectSlot={memberSelectEl}
         rightSlot={<ExportButton year={year} month={month} />}
         roleLabel={memberTenantRoleName ?? undefined}
         funcMenuItems={(close) => (
@@ -278,18 +282,6 @@ export function SchedulePage() {
                 인원 설정
               </span>
             </button>
-            {tenantMode === '회원개별' && isPrivileged && (
-              <select
-                value={filterMemberId ?? ''}
-                onChange={e => setFilterMemberId(e.target.value || null)}
-                className="px-2 py-1 text-xs border border-[var(--color-border)] rounded-lg bg-[var(--color-surface)] text-[var(--color-text-secondary)]"
-              >
-                <option value="">전체 회원</option>
-                {profiles.map(p => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
-            )}
             {tenantMode !== '비회원' && (
               <button onClick={() => { handleAutoAssign(); close() }} className={menuItemCls}>
                 <span className="flex items-center gap-2.5">
@@ -434,6 +426,8 @@ export function SchedulePage() {
           slotLabels={slotLabels}
           typeLabels={typeLabels}
           onClose={() => setModalTarget(null)}
+          // @ts-expect-error lockedUserId prop will be added to SlotEditModal
+          lockedUserId={tenantMode === '회원개별' && isPrivileged ? (filterMemberId ?? undefined) : undefined}
           onAdd={(name, note, volunteerType, timeSub, color, userId, roleId, customerName, customerPhone, extraData) => addAssignment({
             tenant_id: tenant!.id,
             year, month, day: modalTarget.day,
@@ -467,6 +461,10 @@ export function SchedulePage() {
       {autoProposals !== null && (
         <AutoAssignPreviewModal
           proposals={autoProposals}
+          memberPreferences={memberPreferences}
+          roleRatios={tenant?.settings?.role_ratios}
+          tenantRoles={tenantRoles}
+          profiles={profiles}
           onClose={() => setAutoProposals(null)}
           onConfirm={async (selected) => {
             const errors: string[] = []
