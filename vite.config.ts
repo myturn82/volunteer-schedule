@@ -12,9 +12,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'icons/*.png'],
       manifest: {
-        name: '스케줄러',
-        short_name: '스케줄러',
-        description: '멀티테넌트 시간대별 인원 배정 플랫폼',
+        name: '다이나믹팀스케줄',
+        short_name: 'DT스케줄',
+        description: '다이나믹팀스케줄 - 멀티테넌트 시간대별 인원 배정 플랫폼',
         theme_color: '#14171C',
         background_color: '#F4F1EA',
         display: 'standalone',

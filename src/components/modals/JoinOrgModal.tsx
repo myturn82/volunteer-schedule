@@ -45,7 +45,7 @@ export function JoinOrgModal({ userId, onClose, onSuccess }: Props) {
       setTenantRoles(roles ?? [])
       const s = (tenantData as { settings?: { volunteer_label?: string; plus_label?: string } } | null)?.settings
       setTenantTypeLabels({
-        volunteer: s?.volunteer_label ?? '자원봉사자',
+        volunteer: s?.volunteer_label ?? '팀원',
         '50plus': s?.plus_label ?? '50플러스',
       })
     })
@@ -54,7 +54,7 @@ export function JoinOrgModal({ userId, onClose, onSuccess }: Props) {
   const hasCustomRoles = tenantRoles !== null && tenantRoles.length > 0
   const hasNoRoles = tenantRoles !== null && tenantRoles.length === 0
   const effectiveDefaultRoles = [
-    { value: 'volunteer', label: tenantTypeLabels?.volunteer ?? '자원봉사자' },
+    { value: 'volunteer', label: tenantTypeLabels?.volunteer ?? '팀원' },
     { value: '50plus', label: tenantTypeLabels?.['50plus'] ?? '50플러스' },
     { value: 'team_leader', label: '팀장' },
   ]

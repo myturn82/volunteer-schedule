@@ -74,7 +74,7 @@ export function LoginModal({ onClose, onSignIn, onSignUp, onGoogle, onKakao, hid
       setTenantRoles(roles ?? [])
       const s = (tenantData as { settings?: { volunteer_label?: string; plus_label?: string } } | null)?.settings
       setTenantTypeLabels({
-        volunteer: s?.volunteer_label ?? '자원봉사자',
+        volunteer: s?.volunteer_label ?? '팀원',
         '50plus': s?.plus_label ?? '50플러스',
       })
     })
@@ -167,7 +167,7 @@ export function LoginModal({ onClose, onSignIn, onSignUp, onGoogle, onKakao, hid
 
   const hasCustomRoles = tenantRoles !== null && tenantRoles.length > 0
   const effectiveDefaultRoles = [
-    { value: 'volunteer' as const, label: tenantTypeLabels?.volunteer ?? '자원봉사자' },
+    { value: 'volunteer' as const, label: tenantTypeLabels?.volunteer ?? '팀원' },
     { value: '50plus' as const, label: tenantTypeLabels?.['50plus'] ?? '50플러스' },
     { value: 'team_leader' as const, label: '팀장' },
   ]

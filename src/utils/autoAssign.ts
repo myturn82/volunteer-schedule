@@ -192,7 +192,7 @@ export function computeAutoAssignments(params: AutoAssignParams): ProposedAssign
     }
   } else {
     for (const { members, volunteerType, roleName } of [
-      { members: profiles, volunteerType: 'volunteer' as VolunteerType, roleName: volunteerLabel ?? '자원봉사자' },
+      { members: profiles, volunteerType: 'volunteer' as VolunteerType, roleName: volunteerLabel ?? '팀원' },
     ]) {
       if (!members.length) continue
       const vt = volunteerType

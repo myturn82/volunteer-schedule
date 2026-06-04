@@ -47,7 +47,7 @@ export function SlotEditModal({
   splitRoles = [], isSplitMode = false, tenantRoles = [],
   tenantMode = '회원선택', customFields = [],
   slotLabels = {},
-  typeLabels = { volunteer: '자원봉사자', '50plus': '50플러스활동가' },
+  typeLabels = { volunteer: '팀원', '50plus': '50플러스활동가' },
   lockedUserId,
   onClose, onAdd, onUpdate, onDelete,
 }: Props) {

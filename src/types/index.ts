@@ -109,7 +109,7 @@ export interface TenantMemberWithRole extends TenantMember {
 export type VolunteerType = 'volunteer' | '50plus' | 'admin_note';
 
 export const TYPE_LABELS: Record<VolunteerType, string> = {
-  volunteer: '자원봉사자',
+  volunteer: '팀원',
   '50plus': '50플러스활동가',
   admin_note: '관리자 메모',
 };
