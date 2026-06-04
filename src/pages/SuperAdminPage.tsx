@@ -776,12 +776,6 @@ export function SuperAdminPage() {
                     <option value="비회원">비회원</option>
                   </select>
                   <button
-                    onClick={() => editingId === t.id ? setEditingId(null) : startEdit(t)}
-                    className="px-2.5 py-1 text-xs font-medium border border-[var(--color-border)] text-[var(--color-text-secondary)] rounded-lg hover:bg-[var(--color-surface-hover)] transition-colors"
-                  >
-                    {editingId === t.id ? '닫기' : '슬롯'}
-                  </button>
-                  <button
                     onClick={() => { setTenant(t, 'admin'); navigate('/') }}
                     className="px-2.5 py-1 text-xs font-medium border border-[var(--color-border)] text-[var(--color-text-secondary)] rounded-lg hover:bg-[var(--color-surface-hover)] transition-colors"
                   >
@@ -812,29 +806,6 @@ export function SuperAdminPage() {
                 </div>
               </div>
 
-              {/* Inline slot editor */}
-              {editingId === t.id && (
-                <div className="px-4 pb-4 pt-1 border-t border-[var(--color-border)] space-y-4">
-                  <SlotEditor slots={editSlots} onChange={setEditSlots} />
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      disabled={editSaving}
-                      onClick={() => saveEdit(t)}
-                      className="px-4 py-2 rounded-xl bg-[var(--color-brand-primary)] text-white text-sm font-medium hover:bg-[var(--color-brand-primary-hover)] disabled:opacity-40"
-                    >
-                      {editSaving ? '저장 중...' : '저장'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEditingId(null)}
-                      className="px-4 py-2 rounded-xl border border-[var(--color-border)] text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]"
-                    >
-                      취소
-                    </button>
-                  </div>
-                </div>
-              )}
             </li>
           ))}
         </ul>
