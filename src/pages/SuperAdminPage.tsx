@@ -155,9 +155,6 @@ export function SuperAdminPage() {
   const [saving, setSaving]         = useState(false)
 
   // Edit state
-  const [editingId, setEditingId]   = useState<string | null>(null)
-  const [editSlots, setEditSlots]   = useState<string[]>([])
-  const [editSaving, setEditSaving] = useState(false)
   const [modeSaving, setModeSaving] = useState(false)
 
   // Name edit state
@@ -209,50 +206,6 @@ export function SuperAdminPage() {
       setLoading(false)
     })
   }, [profile])
-
-  function startEdit(tenant: Tenant) {
-    setEditingId(tenant.id)
-    setEditSlots(tenant.settings?.time_slots ?? [])
-    setMessage('')
-  }
-
-  async function saveEdit(tenant: Tenant) {
-    if (editSlots.length === 0) { setMessage('슬롯을 하나 이상 등록해야 합니다.'); return }
-    const currentSlots = tenant.settings?.time_slots ?? []
-    const removedSlots = currentSlots.filter(s => !editSlots.includes(s))
-    if (removedSlots.length > 0) {
-      const { count } = await supabase.from('assignments')
-        .select('*', { count: 'exact', head: true })
-        .eq('tenant_id', tenant.id)
-        .in('time_slot', removedSlots)
-      if ((count ?? 0) > 0) {
-        if (!window.confirm(`삭제될 슬롯(${removedSlots.length}개)에 기존 배정 ${count}건이 있습니다.\n해당 배정은 DB에 남지만 스케줄 화면에서 보이지 않게 됩니다.\n계속하시겠습니까?`)) return
-      }
-    }
-    setEditSaving(true)
-    setMessage('')
-    const hasHalf = editSlots.some(s => s.includes('.'))
-    const { data, error } = await supabase
-      .from('tenants')
-      .update({
-        settings: {
-          ...tenant.settings,
-          time_slots: editSlots,
-          slot_interval_minutes: hasHalf ? 30 : 60,
-        },
-      })
-      .eq('id', tenant.id)
-      .select()
-      .single()
-    if (error) {
-      setMessage(`오류: ${error.message}`)
-    } else if (data) {
-      setTenants(prev => prev.map(t => t.id === tenant.id ? data : t))
-      setEditingId(null)
-      setMessage('슬롯이 저장됐습니다.')
-    }
-    setEditSaving(false)
-  }
 
   async function saveName(tenant: Tenant) {
     if (!editName.trim()) return
