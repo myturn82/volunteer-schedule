@@ -62,7 +62,7 @@ type TenantMode = '회원공유' | '회원개별' | '비회원'
   ```typescript
   const [filterMemberId, setFilterMemberId] = useState<string | null>(null)
   ```
-  - 스케줄 뷰 상단에 회원 드롭다운 추가 (회원개별+관리자 시에만 표시)
+  - 스케줄 뷰 상단에 회원 드롭다운 추가 (회원개별+관리자/ 시에만 표시)
   - `displayAssignments = filterMemberId
       ? assignments.filter(a => a.user_id === filterMemberId)
       : assignments`
@@ -78,7 +78,7 @@ type TenantMode = '회원공유' | '회원개별' | '비회원'
 
 ---
 
-## Feature 8 — 조직별 회원 탈퇴
+## Feature 8 — 조직별 회원 탈퇴2
 
 ### 개요
 회원이 탈퇴 신청 → 관리자 승인 → 탈퇴 처리.  
