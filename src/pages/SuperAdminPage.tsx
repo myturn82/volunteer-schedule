@@ -94,6 +94,11 @@ export function SuperAdminPage() {
   // Org list filter
   const [filterCustomerId, setFilterCustomerId] = useState('')
 
+  // Customer delete state
+  const [deleteCustomerConfirm, setDeleteCustomerConfirm] = useState<{ customer: Customer; tenantCount: number } | null>(null)
+  const [deleteCustomerSaving, setDeleteCustomerSaving] = useState(false)
+  const [deleteCustomerNameInput, setDeleteCustomerNameInput] = useState('')
+
   // Owner edit state
   const [editingOwnerCustomerId, setEditingOwnerCustomerId] = useState<string | null>(null)
   const [editOwnerEmail, setEditOwnerEmail] = useState('')
@@ -183,6 +188,29 @@ export function SuperAdminPage() {
       .single()
     if (error) setMessage(`오류: ${error.message}`)
     else if (data) setCustomers(prev => prev.map(c => c.id === customerId ? data as Customer : c))
+  }
+
+  async function startDeleteCustomer(customer: Customer) {
+    const { count } = await supabase
+      .from('tenants')
+      .select('*', { count: 'exact', head: true })
+      .eq('customer_id', customer.id)
+    setDeleteCustomerConfirm({ customer, tenantCount: count ?? 0 })
+    setDeleteCustomerNameInput('')
+  }
+
+  async function confirmDeleteCustomer() {
+    if (!deleteCustomerConfirm) return
+    setDeleteCustomerSaving(true)
+    const { error } = await supabase.from('customers').delete().eq('id', deleteCustomerConfirm.customer.id)
+    if (error) {
+      setMessage(`오류: ${error.message}`)
+    } else {
+      setCustomers(prev => prev.filter(c => c.id !== deleteCustomerConfirm.customer.id))
+      setMessage('고객이 삭제됐습니다.')
+    }
+    setDeleteCustomerConfirm(null)
+    setDeleteCustomerSaving(false)
   }
 
   async function toggleCustomerActive(customer: Customer) {
@@ -706,14 +734,22 @@ export function SuperAdminPage() {
                       <td className="px-4 py-3 text-[var(--color-text-muted)] text-xs hidden md:table-cell">{c.created_at.slice(0, 10)}</td>
                       <td className="px-4 py-3">
                         {c.id !== '00000000-0000-0000-0000-000000000001' && (
-                          <button
-                            onClick={() => toggleCustomerActive(c)}
-                            className={`px-2 py-1 text-[11px] font-semibold rounded-lg transition-colors ${c.is_active
-                              ? 'border border-amber-200 text-amber-700 hover:bg-amber-50'
-                              : 'border border-green-200 text-green-700 hover:bg-green-50'}`}
-                          >
-                            {c.is_active ? '비활성화' : '복구'}
-                          </button>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => toggleCustomerActive(c)}
+                              className={`px-2 py-1 text-[11px] font-semibold rounded-lg transition-colors ${c.is_active
+                                ? 'border border-amber-200 text-amber-700 hover:bg-amber-50'
+                                : 'border border-green-200 text-green-700 hover:bg-green-50'}`}
+                            >
+                              {c.is_active ? '비활성화' : '복구'}
+                            </button>
+                            <button
+                              onClick={() => startDeleteCustomer(c)}
+                              className="px-2 py-1 text-[11px] font-semibold rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
+                            >
+                              삭제
+                            </button>
+                          </div>
                         )}
                       </td>
                     </tr>
@@ -723,6 +759,46 @@ export function SuperAdminPage() {
             </div>
           )}
         </div>
+
+        {/* Customer delete modal */}
+        {deleteCustomerConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+            <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] p-6 w-full max-w-sm space-y-4 shadow-xl">
+              <h3 className="font-bold text-[var(--color-text-primary)] text-lg">고객 삭제</h3>
+              <div className="text-sm text-[var(--color-text-secondary)] space-y-1">
+                <p>고객명: <span className="font-semibold text-[var(--color-text-primary)]">{deleteCustomerConfirm.customer.name}</span></p>
+                <p>소속 조직: <span className="font-semibold">{deleteCustomerConfirm.tenantCount}개</span></p>
+              </div>
+              {deleteCustomerConfirm.tenantCount > 0 && (
+                <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-xs text-amber-700 dark:text-amber-400">
+                  소속 조직 {deleteCustomerConfirm.tenantCount}개의 고객 연결이 해제됩니다. 조직 데이터는 삭제되지 않습니다.
+                </div>
+              )}
+              <p className="text-xs text-red-500">이 작업은 되돌릴 수 없습니다. 고객명을 입력해 확인하세요.</p>
+              <input
+                value={deleteCustomerNameInput}
+                onChange={e => setDeleteCustomerNameInput(e.target.value)}
+                placeholder={`"${deleteCustomerConfirm.customer.name}" 입력`}
+                className="w-full px-3 py-2 rounded-xl border border-red-200 dark:border-red-700 bg-[var(--color-surface)] text-sm focus:outline-none focus:ring-2 focus:ring-red-400/30 focus:border-red-400"
+              />
+              <div className="flex gap-2">
+                <button
+                  disabled={deleteCustomerNameInput !== deleteCustomerConfirm.customer.name || deleteCustomerSaving}
+                  onClick={confirmDeleteCustomer}
+                  className="flex-1 px-4 py-2 rounded-xl bg-red-500 text-white text-sm font-medium hover:bg-red-600 disabled:opacity-40 transition-colors"
+                >
+                  {deleteCustomerSaving ? '삭제 중...' : '영구 삭제'}
+                </button>
+                <button
+                  onClick={() => setDeleteCustomerConfirm(null)}
+                  className="flex-1 px-4 py-2 rounded-xl border border-[var(--color-border)] text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]"
+                >
+                  취소
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ── List header ── */}
         {(() => {
