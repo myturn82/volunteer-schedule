@@ -192,8 +192,8 @@ export function PendingPage() {
       return
     }
     if (data) {
-      await refreshCustomer()
-      navigate('/customer-admin')
+      window.location.href = '/customer-admin'
+      return
     }
     setCustomerCreating(false)
   }
