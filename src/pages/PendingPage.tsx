@@ -8,7 +8,7 @@ interface TenantRole { id: string; name: string; display_order: number }
 interface Tenant { id: string; name: string }
 
 export function PendingPage() {
-  const { profile, signOut, deleteAccount } = useAuth()
+  const { profile, signOut, deleteAccount, refreshCustomer } = useAuth()
   const { reloadMemberships } = useTenant()
   const navigate = useNavigate()
 
@@ -191,7 +191,10 @@ export function PendingPage() {
       setCustomerCreating(false)
       return
     }
-    if (data) navigate('/customer-admin')
+    if (data) {
+      await refreshCustomer()
+      navigate('/customer-admin')
+    }
     setCustomerCreating(false)
   }
 

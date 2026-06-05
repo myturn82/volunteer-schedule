@@ -6,6 +6,7 @@ interface AuthState {
   profile: Profile | null
   myCustomer: Customer | null
   loading: boolean
+  refreshCustomer: () => Promise<void>
   signIn: (email: string, password: string) => Promise<string | null>
   signUp: (email: string, password: string, name: string, role: 'volunteer' | '50plus' | 'team_leader' | 'admin', tenantId?: string, tenantRoleId?: string) => Promise<string | null>
   signInWithGoogle: () => Promise<string | null>
@@ -47,6 +48,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setMyCustomer(customerRes.data ?? null)
     setLoading(false)
   }
+
+  const refreshCustomer = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.user) return
+    const { data } = await supabase
+      .from('customers')
+      .select('*')
+      .eq('owner_user_id', session.user.id)
+      .eq('is_active', true)
+      .maybeSingle()
+    setMyCustomer(data ?? null)
+  }, [])
 
   const signIn = useCallback(async (email: string, password: string): Promise<string | null> => {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
@@ -137,6 +150,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return (
     <AuthContext.Provider value={{
       profile, myCustomer, loading,
+      refreshCustomer,
       signIn, signUp, signInWithGoogle, signInWithKakao,
       linkGoogle, linkKakao, getIdentities, signOut, deleteAccount,
     }}>
