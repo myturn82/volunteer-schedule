@@ -73,7 +73,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     if (pendingRaw) {
       try {
         const { tenantId, tenantRoleId } = JSON.parse(pendingRaw)
-        const alreadyMember = list.some(m => m.tenant_id === tenantId && m.is_approved !== false)
+        const alreadyMember = list.some(m => m.tenant_id === tenantId)
         if (!alreadyMember && tenantId) {
           await supabase.from('tenant_members').insert({
             tenant_id: tenantId,
