@@ -435,16 +435,18 @@ export function TenantSelectPage() {
           {profile?.is_super_admin && !loading && (
             <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
               {([
-                { label: '전체 조직', value: `${allTenants.length}개`, highlight: false },
-                { label: '총 멤버', value: `${Object.values(memberCounts).reduce((s, v) => s + v, 0)}명`, highlight: false },
-                { label: '승인 대기', value: `${Object.values(pendingCounts).reduce((s, v) => s + v, 0)}건`, highlight: Object.values(pendingCounts).some(v => v > 0) },
-              ] as { label: string; value: string; highlight: boolean }[]).map(({ label, value, highlight }) => (
-                <div key={label} style={{
+                { label: '전체 조직', value: `${allTenants.length}개`, highlight: false, onClick: undefined },
+                { label: '총 멤버', value: `${Object.values(memberCounts).reduce((s, v) => s + v, 0)}명`, highlight: false, onClick: undefined },
+                { label: '승인 대기', value: `${Object.values(pendingCounts).reduce((s, v) => s + v, 0)}건`, highlight: Object.values(pendingCounts).some(v => v > 0), onClick: () => navigate('/superadmin') },
+              ] as { label: string; value: string; highlight: boolean; onClick: (() => void) | undefined }[]).map(({ label, value, highlight, onClick }) => (
+                <div key={label} onClick={onClick} style={{
                   flex: '1 1 90px', padding: '10px 14px',
                   background: '#FFFFFF',
                   border: `1px solid ${highlight ? 'oklch(0.88 0.07 50)' : 'rgba(20,23,28,0.07)'}`,
                   borderRadius: 14,
                   boxShadow: '0 1px 0 rgba(20,23,28,0.03)',
+                  cursor: onClick ? 'pointer' : 'default',
+                  transition: onClick ? 'opacity 0.12s' : undefined,
                 }}>
                   <div style={{ fontSize: 10.5, color: '#8A8F99', fontWeight: 600, letterSpacing: 0.4, textTransform: 'uppercase', marginBottom: 4 }}>{label}</div>
                   <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: -0.5, color: highlight ? 'oklch(0.50 0.18 35)' : '#14171C' }}>{value}</div>

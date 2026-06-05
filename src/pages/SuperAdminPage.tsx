@@ -178,6 +178,31 @@ export function SuperAdminPage() {
   // Pending admin approvals
   const [pendingAdmins, setPendingAdmins] = useState<import('../types').Profile[]>([])
 
+  // Pending member approvals (all non-admin users)
+  interface PendingMember {
+    id: string
+    tenant_id: string
+    user_id: string
+    role: string
+    role_id: string | null
+    created_at: string
+    tenant: { name: string } | null
+    profile: { name: string; email: string | null } | null
+    tenant_role: { name: string } | null
+  }
+  const [pendingMembers, setPendingMembers] = useState<PendingMember[]>([])
+  const [selectedMemberIds, setSelectedMemberIds] = useState<Set<string>>(new Set())
+  const [approving, setApproving] = useState(false)
+
+  async function fetchPendingMembers() {
+    const { data } = await supabase
+      .from('tenant_members')
+      .select('id, tenant_id, user_id, role, role_id, created_at, tenant:tenants(name), profile:profiles(name, email), tenant_role:tenant_roles(name)')
+      .eq('is_approved', false)
+      .order('created_at', { ascending: false })
+    setPendingMembers((data ?? []) as unknown as PendingMember[])
+  }
+
   useEffect(() => {
     if (!authLoading && (!profile || !profile.is_super_admin)) navigate('/')
   }, [profile, authLoading, navigate])
@@ -205,6 +230,7 @@ export function SuperAdminPage() {
       setPendingAdmins(admins.filter(p => { if (seen.has(p.id)) return false; seen.add(p.id); return true }))
       setLoading(false)
     })
+    fetchPendingMembers()
   }, [profile])
 
   async function saveName(tenant: Tenant) {
@@ -461,6 +487,95 @@ export function SuperAdminPage() {
                           </button>
                         </div>
                       </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ── 승인 대기 (일반 회원) ── */}
+        {pendingMembers.length > 0 && (
+          <div className="mb-8">
+            <div className="flex items-center gap-3 mb-4 flex-wrap">
+              <h2 className="m-0 text-[16px] font-bold tracking-[-0.3px] text-[var(--color-text-secondary)] flex items-center gap-2 whitespace-nowrap">
+                승인 대기
+                <span className="inline-flex items-center justify-center w-5 h-5 text-[10px] font-bold rounded-full bg-amber-500 text-white">{pendingMembers.length}</span>
+              </h2>
+              <button
+                disabled={selectedMemberIds.size === 0 || approving}
+                onClick={async () => {
+                  if (selectedMemberIds.size === 0) return
+                  setApproving(true)
+                  const { error } = await supabase
+                    .from('tenant_members')
+                    .update({ is_approved: true })
+                    .in('id', Array.from(selectedMemberIds))
+                  if (error) {
+                    setMessage(`승인 오류: ${error.message}`)
+                  } else {
+                    setMessage(`${selectedMemberIds.size}건 승인 완료`)
+                    setSelectedMemberIds(new Set())
+                    await fetchPendingMembers()
+                  }
+                  setApproving(false)
+                }}
+                className="ml-auto px-4 py-2 text-sm font-semibold rounded-xl bg-green-500 text-white hover:bg-green-600 disabled:opacity-40 transition-colors"
+              >
+                {approving ? '처리 중...' : `선택 승인${selectedMemberIds.size > 0 ? ` (${selectedMemberIds.size})` : ''}`}
+              </button>
+            </div>
+            <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[22px] overflow-hidden shadow-[var(--shadow-sm)]">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-[var(--color-surface-secondary)] border-b border-[var(--color-border)]">
+                    <th className="px-4 py-3">
+                      <input
+                        type="checkbox"
+                        className="accent-[var(--color-brand-primary)] w-4 h-4"
+                        checked={selectedMemberIds.size === pendingMembers.length && pendingMembers.length > 0}
+                        onChange={e => {
+                          if (e.target.checked) setSelectedMemberIds(new Set(pendingMembers.map(m => m.id)))
+                          else setSelectedMemberIds(new Set())
+                        }}
+                      />
+                    </th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)]">이름</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] hidden sm:table-cell">이메일</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)]">조직</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] hidden md:table-cell">역할</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] hidden md:table-cell">신청일시</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--color-border)]">
+                  {pendingMembers.map(m => (
+                    <tr
+                      key={m.id}
+                      className={`hover:bg-[var(--color-surface-hover)] cursor-pointer ${selectedMemberIds.has(m.id) ? 'bg-[var(--color-brand-primary)]/5' : ''}`}
+                      onClick={() => setSelectedMemberIds(prev => {
+                        const next = new Set(prev)
+                        if (next.has(m.id)) next.delete(m.id); else next.add(m.id)
+                        return next
+                      })}
+                    >
+                      <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          className="accent-[var(--color-brand-primary)] w-4 h-4"
+                          checked={selectedMemberIds.has(m.id)}
+                          onChange={() => setSelectedMemberIds(prev => {
+                            const next = new Set(prev)
+                            if (next.has(m.id)) next.delete(m.id); else next.add(m.id)
+                            return next
+                          })}
+                        />
+                      </td>
+                      <td className="px-4 py-3 font-medium text-[var(--color-text-primary)]">{m.profile?.name ?? '-'}</td>
+                      <td className="px-4 py-3 text-[var(--color-text-muted)] text-xs hidden sm:table-cell">{m.profile?.email ?? '-'}</td>
+                      <td className="px-4 py-3 text-[var(--color-text-secondary)] text-xs">{m.tenant?.name ?? '-'}</td>
+                      <td className="px-4 py-3 text-[var(--color-text-muted)] text-xs hidden md:table-cell">{m.tenant_role?.name ?? m.role ?? '-'}</td>
+                      <td className="px-4 py-3 text-[var(--color-text-muted)] text-xs hidden md:table-cell">{m.created_at.slice(0, 16).replace('T', ' ')}</td>
                     </tr>
                   ))}
                 </tbody>

@@ -12,13 +12,11 @@ export function PendingPage() {
 
   const [showForm, setShowForm] = useState(false)
   const [tenants, setTenants] = useState<Tenant[]>([])
-  const [tenantId, setTenantId] = useState('')
 
-  // 조직별 커스텀 역할
-  const [tenantRoles, setTenantRoles] = useState<TenantRole[] | null>(null)
-  const [tenantRoleId, setTenantRoleId] = useState<string | null>(null)
-  const [defaultRole, setDefaultRole] = useState<string | null>(null)
-  const [tenantTypeLabels, setTenantTypeLabels] = useState<{ volunteer: string; '50plus': string } | null>(null)
+  const [selectedOrgIds, setSelectedOrgIds] = useState<Set<string>>(new Set())
+  const [orgRolesMap, setOrgRolesMap] = useState<Map<string, TenantRole[] | null>>(new Map())
+  const [orgTypeLabelsMap, setOrgTypeLabelsMap] = useState<Map<string, { volunteer: string; '50plus': string } | null>>(new Map())
+  const [selectedRoleMap, setSelectedRoleMap] = useState<Map<string, { roleId: string | null; defaultRole: string | null }>>(new Map())
 
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
@@ -41,15 +39,12 @@ export function PendingPage() {
   const pendingOrgs = (memberships ?? []).filter(m => m.is_approved === false)
   const hasPending = pendingOrgs.length > 0
 
-
-  // 소셜 회원가입 경로로 진입 시 신청완료 상태로 전환
   useEffect(() => {
     if (!profile) return
     const notice = localStorage.getItem('vs_notice_join_requested')
     if (notice) { localStorage.removeItem('vs_notice_join_requested'); setSubmitted(true) }
   }, [profile?.id])
 
-  // 멤버십이 없는 신규 사용자(로그인 탭 카카오 등)는 폼 자동 오픈
   useEffect(() => {
     if (memberships !== null && memberships.length === 0 && !submitted && !profile?.is_super_admin) setShowForm(true)
   }, [memberships, submitted, profile?.is_super_admin])
@@ -62,35 +57,41 @@ export function PendingPage() {
     })
   }, [showForm, memberships])
 
-  // 조직 변경 시 역할 완전 초기화
-  useEffect(() => {
-    setTenantRoles(null)
-    setTenantRoleId(null)
-    setDefaultRole(null)
-    setTenantTypeLabels(null)
+  async function fetchOrgRoles(orgId: string) {
+    if (orgRolesMap.has(orgId)) return
+    const [{ data: roles }, { data: tenantData }] = await Promise.all([
+      supabase.from('tenant_roles').select('id, name, display_order').eq('tenant_id', orgId).order('display_order'),
+      supabase.from('tenants').select('settings').eq('id', orgId).single(),
+    ])
+    const s = (tenantData as { settings?: { volunteer_label?: string; plus_label?: string } } | null)?.settings
+    setOrgRolesMap(prev => new Map(prev).set(orgId, roles ?? []))
+    setOrgTypeLabelsMap(prev => new Map(prev).set(orgId, {
+      volunteer: s?.volunteer_label ?? '팀원',
+      '50plus': s?.plus_label ?? '50플러스',
+    }))
+  }
+
+  function toggleOrg(orgId: string) {
     setError(null)
-    if (!tenantId) return
-    Promise.all([
-      supabase.from('tenant_roles').select('id, name, display_order').eq('tenant_id', tenantId).order('display_order'),
-      supabase.from('tenants').select('settings').eq('id', tenantId).single(),
-    ]).then(([{ data: roles }, { data: tenantData }]) => {
-      setTenantRoles(roles ?? [])
-      const s = (tenantData as { settings?: { volunteer_label?: string; plus_label?: string } } | null)?.settings
-      setTenantTypeLabels({
-        volunteer: s?.volunteer_label ?? '팀원',
-        '50plus': s?.plus_label ?? '50플러스',
-      })
+    setSelectedOrgIds(prev => {
+      const next = new Set(prev)
+      if (next.has(orgId)) {
+        next.delete(orgId)
+        setSelectedRoleMap(r => { const m = new Map(r); m.delete(orgId); return m })
+      } else {
+        next.add(orgId)
+        fetchOrgRoles(orgId)
+      }
+      return next
     })
-  }, [tenantId])
+  }
+
+  function selectRole(orgId: string, roleId: string | null, defaultRole: string | null) {
+    setSelectedRoleMap(prev => new Map(prev).set(orgId, { roleId, defaultRole }))
+    setError(null)
+  }
 
   const isAdminRole = profile?.is_super_admin
-  const hasCustomRoles = tenantRoles !== null && tenantRoles.length > 0
-  const hasNoRoles = tenantRoles !== null && tenantRoles.length === 0
-  const effectiveDefaultRoles = [
-    { value: 'volunteer', label: tenantTypeLabels?.volunteer ?? '팀원' },
-    { value: '50plus', label: tenantTypeLabels?.['50plus'] ?? '50플러스' },
-    { value: 'team_leader', label: '팀장' },
-  ]
 
   const waitMessage = hasPending
     ? isAdminRole
@@ -99,41 +100,60 @@ export function PendingPage() {
     : '신청할 조직을 선택해 주세요.'
 
   async function handleReapply() {
-    if (!tenantId) { setError('조직을 선택해주세요.'); return }
-    if (hasNoRoles) { setError('이 조직은 아직 활동 유형이 등록되지 않았습니다. 관리자에게 문의하세요.'); return }
-    if (hasCustomRoles && !tenantRoleId) { setError('활동 유형을 선택해주세요.'); return }
-    if (!hasCustomRoles && !defaultRole) { setError('활동 유형을 선택해주세요.'); return }
+    if (selectedOrgIds.size === 0) { setError('가입할 조직을 선택해주세요.'); return }
 
-    // 역할이 현재 조직 소속인지 검증
-    if (tenantRoleId && tenantRoles && !tenantRoles.some(r => r.id === tenantRoleId)) {
-      setError('선택한 역할이 해당 조직에 존재하지 않습니다. 다시 선택해주세요.')
-      setTenantRoleId(null)
-      return
+    for (const orgId of selectedOrgIds) {
+      const roles = orgRolesMap.get(orgId)
+      const hasCustomRoles = roles !== null && roles !== undefined && roles.length > 0
+      const hasNoRoles = roles !== null && roles !== undefined && roles.length === 0
+      const sel = selectedRoleMap.get(orgId)
+      const tenant = tenants.find(t => t.id === orgId)
+      const orgName = tenant?.name ?? orgId
+
+      if (hasNoRoles) { setError(`${orgName} 조직은 아직 활동 유형이 등록되지 않았습니다.`); return }
+      if (roles === null || roles === undefined) { setError(`${orgName} 조직의 역할 정보를 불러오는 중입니다.`); return }
+      if (hasCustomRoles && !sel?.roleId) { setError(`${orgName} 조직의 활동 유형을 선택해주세요.`); return }
+      if (!hasCustomRoles && !sel?.defaultRole) { setError(`${orgName} 조직의 활동 유형을 선택해주세요.`); return }
     }
 
     setError(null)
     setSubmitting(true)
 
-    const { error: insertErr } = await supabase
-      .from('tenant_members')
-      .insert({
-        tenant_id: tenantId,
-        user_id: profile!.id,
-        role: 'member',
-        role_id: tenantRoleId ?? null,
-      })
-
     const isFirstRequest = (memberships?.length ?? 0) === 0
-    setSubmitting(false)
-    if (insertErr) {
-      if (insertErr.code === '23505') { setError('이미 해당 조직에 신청 중입니다.'); return }
-      setError(insertErr.message); return
+    const errors: string[] = []
+
+    for (const orgId of selectedOrgIds) {
+      const roles = orgRolesMap.get(orgId)
+      const hasCustomRoles = roles !== null && roles !== undefined && roles.length > 0
+      const sel = selectedRoleMap.get(orgId)
+      const orgName = tenants.find(t => t.id === orgId)?.name ?? orgId
+
+      const { error: insertErr } = await supabase
+        .from('tenant_members')
+        .insert({
+          tenant_id: orgId,
+          user_id: profile!.id,
+          role: 'member',
+          role_id: hasCustomRoles ? (sel?.roleId ?? null) : null,
+        })
+
+      if (insertErr) {
+        if (insertErr.code === '23505') continue
+        errors.push(`${orgName}: ${insertErr.message}`)
+      }
     }
+
+    setSubmitting(false)
+
+    if (errors.length > 0) {
+      setError(errors.join('\n'))
+      return
+    }
+
     if (isFirstRequest) {
       setSubmitted(true)
       setShowForm(false)
     } else {
-      // 추가 조직 신청: 목록 재조회 후 폼 리셋
       const { data } = await supabase
         .from('tenant_members')
         .select('tenant_id, is_approved, tenant:tenants(name)')
@@ -145,10 +165,10 @@ export function PendingPage() {
 
   function resetForm() {
     setShowForm(false)
-    setTenantId('')
-    setTenantRoles(null)
-    setTenantRoleId(null)
-    setDefaultRole(null)
+    setSelectedOrgIds(new Set())
+    setOrgRolesMap(new Map())
+    setOrgTypeLabelsMap(new Map())
+    setSelectedRoleMap(new Map())
     setError(null)
   }
 
@@ -184,7 +204,6 @@ export function PendingPage() {
           </div>
         )}
 
-        {/* 재신청 버튼 (관리자 역할 제외) */}
         {!isAdminRole && !submitted && (
           <div className="mb-4">
             {!showForm ? (
@@ -198,72 +217,102 @@ export function PendingPage() {
               <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-4 text-left space-y-3">
                 <p className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wide">가입 신청</p>
 
-                {/* 조직 선택 */}
-                <div>
-                  <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
-                    조직 <span className="text-red-500">*</span>
-                  </label>
-                  {tenants.length === 0 ? (
-                    <p className="text-xs text-[var(--color-text-muted)] py-1">
-                      신청 가능한 조직이 없습니다. 이미 모든 조직에 신청했거나 가입된 상태입니다.
-                    </p>
-                  ) : (
-                    <select
-                      value={tenantId}
-                      onChange={e => setTenantId(e.target.value)}
-                      className="w-full border border-[var(--color-border-strong)] rounded-xl px-3 py-2 text-sm bg-[var(--color-surface-secondary)] text-[var(--color-text-primary)] focus:outline-none"
-                    >
-                      <option value="">조직을 선택하세요</option>
-                      {tenants.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                    </select>
-                  )}
-                </div>
-
-                {/* 활동 유형 (통합) */}
-                {tenantId && (
-                  <div>
-                    <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
-                      활동 유형 <span className="text-red-500">*</span>
+                {tenants.length === 0 ? (
+                  <p className="text-xs text-[var(--color-text-muted)] py-1">
+                    신청 가능한 조직이 없습니다. 이미 모든 조직에 신청했거나 가입된 상태입니다.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    <label className="block text-xs font-medium text-[var(--color-text-secondary)]">
+                      조직 선택 <span className="text-red-500">*</span>
                     </label>
-                    {tenantRoles === null ? (
-                      <p className="text-xs text-[var(--color-text-muted)]">로딩 중...</p>
-                    ) : hasNoRoles ? (
-                      <p className="text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-lg">이 조직은 아직 활동 유형이 등록되지 않았습니다. 관리자에게 문의하세요.</p>
-                    ) : hasCustomRoles ? (
-                      <div className="grid grid-cols-2 gap-1.5">
-                        {tenantRoles.map(tr => (
-                          <button key={tr.id} type="button"
-                            onClick={() => { setTenantRoleId(tr.id); setDefaultRole(null) }}
-                            className={roleBtn(tenantRoleId === tr.id)}>
-                            {tr.name}
-                          </button>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-3 gap-1.5">
-                        {effectiveDefaultRoles.map(r => (
-                          <button key={r.value} type="button"
-                            onClick={() => { setDefaultRole(r.value); setTenantRoleId(null) }}
-                            className={roleBtn(defaultRole === r.value)}>
-                            {r.label}
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                    <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                      {tenants.map(t => {
+                        const roles = orgRolesMap.get(t.id)
+                        const hasNoRoles = roles !== null && roles !== undefined && roles.length === 0
+                        const hasCustomRoles = roles !== null && roles !== undefined && roles.length > 0
+                        const isChecked = selectedOrgIds.has(t.id)
+                        const sel = selectedRoleMap.get(t.id)
+                        const typeLabels = orgTypeLabelsMap.get(t.id)
+                        const effectiveDefaultRoles = [
+                          { value: 'volunteer', label: typeLabels?.volunteer ?? '팀원' },
+                          { value: '50plus', label: typeLabels?.['50plus'] ?? '50플러스' },
+                          { value: 'team_leader', label: '팀장' },
+                        ]
+
+                        return (
+                          <div
+                            key={t.id}
+                            className={`rounded-xl border transition-all duration-150 ${
+                              isChecked
+                                ? 'border-[var(--color-brand-primary)] bg-[var(--color-brand-primary)]/5'
+                                : 'border-[var(--color-border)] bg-[var(--color-surface-secondary)]'
+                            } ${hasNoRoles ? 'opacity-60' : ''}`}
+                          >
+                            <label className={`flex items-center gap-2.5 px-3 py-2.5 ${hasNoRoles ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
+                              <input
+                                type="checkbox"
+                                disabled={hasNoRoles}
+                                checked={isChecked}
+                                onChange={() => !hasNoRoles && toggleOrg(t.id)}
+                                className="accent-[var(--color-brand-primary)] w-4 h-4 flex-shrink-0"
+                              />
+                              <span className="text-sm font-medium text-[var(--color-text-primary)] flex-1">{t.name}</span>
+                              {hasNoRoles && (
+                                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 whitespace-nowrap">
+                                  활동유형 미등록
+                                </span>
+                              )}
+                            </label>
+
+                            {isChecked && (
+                              <div className="px-3 pb-3 pt-1 border-t border-[var(--color-border)]">
+                                <p className="text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">
+                                  활동 유형 <span className="text-red-500">*</span>
+                                </p>
+                                {roles === null || roles === undefined ? (
+                                  <p className="text-xs text-[var(--color-text-muted)]">로딩 중...</p>
+                                ) : hasCustomRoles ? (
+                                  <div className="grid grid-cols-2 gap-1.5">
+                                    {roles.map(tr => (
+                                      <button key={tr.id} type="button"
+                                        onClick={() => selectRole(t.id, tr.id, null)}
+                                        className={roleBtn(sel?.roleId === tr.id)}>
+                                        {tr.name}
+                                      </button>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="grid grid-cols-3 gap-1.5">
+                                    {effectiveDefaultRoles.map(r => (
+                                      <button key={r.value} type="button"
+                                        onClick={() => selectRole(t.id, null, r.value)}
+                                        className={roleBtn(sel?.defaultRole === r.value)}>
+                                        {r.label}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
                   </div>
                 )}
 
                 {error && (
-                  <p className="text-xs text-red-500 bg-red-50 dark:bg-red-950/30 px-3 py-2 rounded-lg">{error}</p>
+                  <p className="text-xs text-red-500 bg-red-50 dark:bg-red-950/30 px-3 py-2 rounded-lg whitespace-pre-line">{error}</p>
                 )}
 
                 <div className="flex gap-2 pt-1">
                   <button
                     onClick={handleReapply}
-                    disabled={submitting}
+                    disabled={submitting || tenants.length === 0}
                     className="flex-1 py-2 text-sm font-semibold rounded-xl bg-[var(--color-brand-primary)] text-white hover:bg-[var(--color-brand-primary-hover)] disabled:opacity-50 transition-colors"
                   >
-                    {submitting ? '신청 중...' : '신청하기'}
+                    {submitting ? '신청 중...' : `신청하기${selectedOrgIds.size > 0 ? ` (${selectedOrgIds.size}개)` : ''}`}
                   </button>
                   <button
                     onClick={resetForm}
