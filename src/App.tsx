@@ -11,6 +11,9 @@ import { TenantSelectPage } from './pages/TenantSelectPage'
 import { PendingPage } from './pages/PendingPage'
 import { SuperAdminPage } from './pages/SuperAdminPage'
 import { CustomerAdminPage } from './pages/CustomerAdminPage'
+import { LandingPage }  from './pages/LandingPage'
+import { ConsentPage }  from './pages/ConsentPage'
+import { AuthPage }     from './pages/AuthPage'
 import { useDarkMode } from './hooks/useDarkMode'
 
 function AppRoutes() {
@@ -24,6 +27,19 @@ function AppRoutes() {
       <div className="min-h-screen flex items-center justify-center bg-[var(--color-bg)]">
         <div className="text-[var(--color-text-secondary)] text-sm">로딩 중...</div>
       </div>
+    )
+  }
+
+  // ── 비인증 사용자: 공개 라우트 ─────────────────────────────────────────
+  if (!profile) {
+    return (
+      <Routes>
+        <Route path="/"        element={<LandingPage />} />
+        <Route path="/consent" element={<ConsentPage />} />
+        <Route path="/auth"    element={<AuthPage />} />
+        <Route path="/share"   element={<SharePage />} />
+        <Route path="*"        element={<Navigate to="/" replace />} />
+      </Routes>
     )
   }
 
