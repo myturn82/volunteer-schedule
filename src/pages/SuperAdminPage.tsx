@@ -829,13 +829,11 @@ export function SuperAdminPage() {
                     )}
                   </div>
                 )}
-                <div className="mt-[5px] inline-flex items-center gap-[7px] whitespace-nowrap text-[12.5px] font-semibold text-[var(--color-text-muted)]">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.7, flexShrink: 0 }}><rect x="3" y="4" width="18" height="17" rx="2.5"/><path d="M3 9h18M8 2.5v4M16 2.5v4"/></svg>
-                  슬롯 {t.settings?.time_slots?.length ?? 0}개
-                  {t.is_active === false && (
+                {t.is_active === false && (
+                  <div className="mt-[5px]">
                     <span className="text-[11px] font-semibold px-[7px] py-[2px] rounded-md bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">비활성</span>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
 
               {/* orgCat */}
