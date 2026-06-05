@@ -300,7 +300,7 @@ export function CustomerAdminPage() {
                   스케줄
                 </button>
                 <button
-                  onClick={() => navigate(`/admin?org=${t.id}`)}
+                  onClick={() => { setTenant(t, 'admin'); navigate('/admin') }}
                   className="flex-1 sm:flex-none inline-flex items-center justify-center h-[38px] px-4 rounded-[9px] text-[13px] font-semibold text-white hover:opacity-90 transition-colors"
                   style={{ background: 'var(--color-brand-primary)' }}
                 >
