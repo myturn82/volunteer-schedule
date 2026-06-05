@@ -73,9 +73,10 @@ export function SchedulePage() {
   // 소셜 회원가입 탭에서 이미 가입된 조직 감지 → localStorage 플래그 수거
   useEffect(() => {
     if (!profile) return
-    const notice = localStorage.getItem('vs_notice_already_member')
+    const notice = localStorage.getItem('vs_notice_already_member') ?? localStorage.getItem('vs_notice_join_requested')
     if (notice) {
       localStorage.removeItem('vs_notice_already_member')
+      localStorage.removeItem('vs_notice_join_requested')
       setMemberNotice(notice)
     }
   }, [profile?.id])

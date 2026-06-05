@@ -194,9 +194,10 @@ export function TenantSelectPage() {
 
   useEffect(() => {
     if (!profile) return
-    const notice = localStorage.getItem('vs_notice_already_member')
+    const notice = localStorage.getItem('vs_notice_already_member') ?? localStorage.getItem('vs_notice_join_requested')
     if (notice) {
       localStorage.removeItem('vs_notice_already_member')
+      localStorage.removeItem('vs_notice_join_requested')
       setMemberNotice(notice)
     }
   }, [profile?.id])

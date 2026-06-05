@@ -81,6 +81,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
             role: 'member',
             role_id: tenantRoleId ?? null,
           })
+          localStorage.setItem('vs_notice_join_requested', '가입 신청이 완료됐습니다. 관리자 승인 후 이용할 수 있습니다.')
           // 재조회
           const { data: data2 } = await supabase
             .from('tenant_members')
