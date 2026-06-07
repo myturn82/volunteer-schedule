@@ -44,7 +44,7 @@ export function SchedulePage() {
 
   const [filterMemberId, setFilterMemberId] = useState<string | null>(null)
 
-  const { profile, loading: authLoading } = useAuth()
+  const { profile } = useAuth()
   const { tenant, tenantRole, memberships, timeSlots, slotLabels, legendItems, customFields, typeLabels } = useTenant()
   const memberRoleId = memberships.find(m => m.tenant_id === tenant?.id)?.role_id ?? null
   const isPrivileged = profile?.is_super_admin || tenantRole === 'admin'
