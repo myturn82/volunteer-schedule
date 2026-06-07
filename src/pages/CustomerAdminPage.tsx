@@ -20,7 +20,7 @@ const EMPTY_FORM: CreateForm = { slug: '', name: '', title: '', business_type: '
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 
 export function CustomerAdminPage() {
-  const { profile, myCustomer, loading: authLoading } = useAuth()
+  const { profile, myCustomer, loading: authLoading, signOut, deleteAccount } = useAuth()
   const { setTenant, reloadMemberships } = useTenant()
   const navigate = useNavigate()
 
@@ -29,6 +29,7 @@ export function CustomerAdminPage() {
   const [loading, setLoading]     = useState(true)
   const [message, setMessage]     = useState('')
 
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false)
   const [showCreate, setShowCreate] = useState(false)
   const [form, setForm]             = useState<CreateForm>(EMPTY_FORM)
   const [createSlots, setCreateSlots] = useState<string[]>(['09-12', '13-14', '14-16', '16-18', '20-22'])
@@ -146,6 +147,7 @@ export function CustomerAdminPage() {
   const inputCls = 'w-full px-3 py-2 rounded-xl border border-[var(--color-border-strong)] bg-[var(--color-surface)] text-[var(--color-text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-primary)]/30 focus:border-[var(--color-brand-primary)]'
 
   return (
+    <>
     <div className="min-h-screen bg-[var(--color-bg)]">
       <div className="max-w-[820px] mx-auto" style={{ padding: 'clamp(16px,3vw,30px) clamp(14px,4vw,26px) 90px' }}>
 
@@ -157,8 +159,11 @@ export function CustomerAdminPage() {
           <span className="text-xs font-bold px-3 py-1 rounded-full" style={{ background: 'oklch(0.95 0.045 28)', color: 'oklch(0.45 0.14 28)' }}>
             {PLAN_LABELS[plan]}
           </span>
-          <button onClick={() => navigate('/')} className="ml-auto text-[13px] font-semibold text-[var(--color-text-muted)] px-3 py-2 rounded-[10px] hover:bg-[var(--color-surface)] transition-colors">
-            돌아가기
+          <button onClick={signOut} className="ml-auto text-[13px] font-semibold text-[var(--color-text-muted)] px-3 py-2 rounded-[10px] hover:bg-[var(--color-surface)] transition-colors">
+            로그아웃
+          </button>
+          <button onClick={() => setShowWithdrawModal(true)} className="text-[12px] font-medium text-red-400 hover:text-red-500 px-2 py-2 rounded-[10px] hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors">
+            회원탈퇴
           </button>
         </div>
 
@@ -313,5 +318,38 @@ export function CustomerAdminPage() {
 
       </div>
     </div>
+
+    {/* 회원탈퇴 확인 모달 */}
+    {showWithdrawModal && (
+      <>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(20,23,28,0.45)', backdropFilter: 'blur(4px)' }} onClick={() => setShowWithdrawModal(false)} />
+        <div style={{ position: 'fixed', inset: 0, zIndex: 101, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div style={{ background: 'var(--color-surface, #fff)', border: '1px solid rgba(20,23,28,0.09)', borderRadius: 18, padding: '24px 24px 20px', width: '100%', maxWidth: 340, boxShadow: '0 22px 60px -28px rgba(20,23,28,0.30)', fontFamily: 'inherit' }}>
+            <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-text-primary, #14171C)', margin: '0 0 8px' }}>계정을 삭제하시겠어요?</h2>
+            <p style={{ fontSize: 13, color: 'var(--color-text-secondary, #6B7280)', lineHeight: 1.6, margin: '0 0 20px' }}>
+              서비스 계정({myCustomer?.name})과 모든 데이터가 영구 삭제됩니다. 이 작업은 되돌릴 수 없습니다.
+            </p>
+            <button
+              onClick={async () => {
+                setShowWithdrawModal(false)
+                const err = await deleteAccount()
+                if (err) alert(err)
+              }}
+              style={{ width: '100%', padding: '12px 16px', textAlign: 'left', borderRadius: 12, border: '1px solid oklch(0.88 0.06 25)', background: 'oklch(0.98 0.02 25)', cursor: 'pointer', fontFamily: 'inherit', marginBottom: 8 }}
+            >
+              <div style={{ fontSize: 13.5, fontWeight: 600, color: 'oklch(0.45 0.15 25)' }}>전체 계정 삭제</div>
+              <div style={{ fontSize: 12, color: 'oklch(0.60 0.10 25)', marginTop: 2 }}>계정과 모든 조직 데이터를 완전히 삭제합니다.</div>
+            </button>
+            <button
+              onClick={() => setShowWithdrawModal(false)}
+              style={{ width: '100%', height: 38, fontSize: 13, color: 'var(--color-text-muted, #8A8F99)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
+            >
+              취소
+            </button>
+          </div>
+        </div>
+      </>
+    )}
+    </>
   )
 }
