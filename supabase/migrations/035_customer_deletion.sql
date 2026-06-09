@@ -1,9 +1,16 @@
--- 운영 환경 적용 전: SELECT id, name FROM tenants WHERE customer_id IS NULL; 로 orphan 확인 권장
-DELETE FROM tenants WHERE customer_id IS NULL;
+-- orphan tenant 존재 시 마이그레이션 중단 (운영 환경 안전장치)
+DO $$
+DECLARE v_count int;
+BEGIN
+  SELECT COUNT(*) INTO v_count FROM tenants WHERE customer_id IS NULL;
+  IF v_count > 0 THEN
+    RAISE EXCEPTION 'Aborting: % orphan tenant(s) found. Review and remove manually before applying.', v_count;
+  END IF;
+END $$;
 
 ALTER TABLE tenants ALTER COLUMN customer_id SET NOT NULL;
 
--- FK 제약을 ON DELETE CASCADE로 교체 (실제 제약명을 동적으로 조회하여 안전하게 처리)
+-- FK ON DELETE SET NULL → CASCADE 변경 (실제 제약명을 동적으로 조회)
 DO $$
 DECLARE
   v_constraint text;

@@ -868,7 +868,7 @@ export function SuperAdminPage() {
               </div>
               {deleteCustomerConfirm.tenantCount > 0 && (
                 <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-xs text-amber-700 dark:text-amber-400">
-                  소속 조직 {deleteCustomerConfirm.tenantCount}개의 고객 연결이 해제됩니다. 조직 데이터는 삭제되지 않습니다.
+                  소속 조직 {deleteCustomerConfirm.tenantCount}개와 모든 데이터(배정, 회원 등)가 영구 삭제됩니다.
                 </div>
               )}
               <p className="text-xs text-red-500">이 작업은 되돌릴 수 없습니다. 고객명을 입력해 확인하세요.</p>
