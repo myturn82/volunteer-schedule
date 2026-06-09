@@ -1,30 +1,42 @@
--- 1. orphan tenants 제거 (customer_id IS NULL인 행)
+-- 운영 환경 적용 전: SELECT id, name FROM tenants WHERE customer_id IS NULL; 로 orphan 확인 권장
 DELETE FROM tenants WHERE customer_id IS NULL;
 
--- 2. customer_id NOT NULL 제약 추가
 ALTER TABLE tenants ALTER COLUMN customer_id SET NOT NULL;
 
--- 3. FK ON DELETE SET NULL → CASCADE 변경
-ALTER TABLE tenants DROP CONSTRAINT IF EXISTS tenants_customer_id_fkey;
+-- FK 제약을 ON DELETE CASCADE로 교체 (실제 제약명을 동적으로 조회하여 안전하게 처리)
+DO $$
+DECLARE
+  v_constraint text;
+BEGIN
+  SELECT tc.constraint_name INTO v_constraint
+  FROM information_schema.table_constraints tc
+  JOIN information_schema.key_column_usage kcu
+    ON tc.constraint_name = kcu.constraint_name AND tc.table_name = kcu.table_name
+  WHERE tc.table_name = 'tenants'
+    AND tc.constraint_type = 'FOREIGN KEY'
+    AND kcu.column_name = 'customer_id';
+
+  IF v_constraint IS NOT NULL THEN
+    EXECUTE format('ALTER TABLE tenants DROP CONSTRAINT %I', v_constraint);
+  END IF;
+END $$;
+
 ALTER TABLE tenants ADD CONSTRAINT tenants_customer_id_fkey
   FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE;
 
--- 4. customers.deletion_requested_at 컬럼 추가
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS deletion_requested_at timestamptz;
 
--- 5. is_active 변경 시 소속 tenants에 cascade 적용하는 트리거
 CREATE OR REPLACE FUNCTION cascade_customer_soft_delete()
 RETURNS TRIGGER AS $$
 BEGIN
-  IF NEW.is_active = false AND OLD.is_active = true THEN
-    UPDATE tenants SET is_active = false WHERE customer_id = NEW.id;
-  END IF;
-  IF NEW.is_active = true AND OLD.is_active = false THEN
-    UPDATE tenants SET is_active = true WHERE customer_id = NEW.id;
+  IF NEW.is_active IS DISTINCT FROM OLD.is_active THEN
+    UPDATE tenants
+    SET is_active = NEW.is_active
+    WHERE customer_id = NEW.id AND is_active IS DISTINCT FROM NEW.is_active;
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 DROP TRIGGER IF EXISTS trg_cascade_customer_soft_delete ON customers;
 CREATE TRIGGER trg_cascade_customer_soft_delete
