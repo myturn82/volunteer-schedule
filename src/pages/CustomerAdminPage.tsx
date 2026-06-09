@@ -274,9 +274,9 @@ export function CustomerAdminPage() {
         <div className="flex items-center gap-3 mb-4">
           <h2 className="m-0 text-[16px] font-bold tracking-[-0.3px] text-[var(--color-text-secondary)]">조직 목록</h2>
           <button
-            onClick={() => { if (atOrgLimit) { setMessage(`현재 플랜(${PLAN_LABELS[plan]})의 최대 조직 수(${limits.maxOrgs}개)에 도달했습니다.`); return } setShowCreate(v => !v) }}
-            disabled={atOrgLimit}
-            title={atOrgLimit ? `플랜 한도 초과 (최대 ${limits.maxOrgs}개)` : '새 조직 추가'}
+            onClick={() => { if (isDeletionPending) { setMessage('탈퇴 요청 중에는 새 조직을 생성할 수 없습니다.'); return } if (atOrgLimit) { setMessage(`현재 플랜(${PLAN_LABELS[plan]})의 최대 조직 수(${limits.maxOrgs}개)에 도달했습니다.`); return } setShowCreate(v => !v) }}
+            disabled={atOrgLimit || isDeletionPending}
+            title={isDeletionPending ? '탈퇴 요청 중입니다' : atOrgLimit ? `플랜 한도 초과 (최대 ${limits.maxOrgs}개)` : '새 조직 추가'}
             className="ml-auto inline-flex items-center justify-center gap-[6px] h-[40px] px-[17px] rounded-[11px] text-[13.5px] font-bold text-white transition-colors hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
             style={{ background: 'var(--color-brand-primary)' }}
           >
@@ -378,13 +378,15 @@ export function CustomerAdminPage() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => { setTenant(t, 'admin'); navigate('/schedule') }}
-                  className="flex-1 sm:flex-none inline-flex items-center justify-center h-[38px] px-4 rounded-[9px] text-[13px] font-semibold border border-[var(--color-border-strong)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-secondary)] transition-colors"
+                  disabled={isDeletionPending || t.is_active === false}
+                  className="flex-1 sm:flex-none inline-flex items-center justify-center h-[38px] px-4 rounded-[9px] text-[13px] font-semibold border border-[var(--color-border-strong)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-secondary)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   스케줄
                 </button>
                 <button
                   onClick={() => { setTenant(t, 'admin'); navigate('/admin') }}
-                  className="flex-1 sm:flex-none inline-flex items-center justify-center h-[38px] px-4 rounded-[9px] text-[13px] font-semibold text-white hover:opacity-90 transition-colors"
+                  disabled={isDeletionPending || t.is_active === false}
+                  className="flex-1 sm:flex-none inline-flex items-center justify-center h-[38px] px-4 rounded-[9px] text-[13px] font-semibold text-white hover:opacity-90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   style={{ background: 'var(--color-brand-primary)' }}
                 >
                   관리
