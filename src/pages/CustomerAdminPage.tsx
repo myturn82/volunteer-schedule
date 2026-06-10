@@ -21,7 +21,7 @@ const EMPTY_FORM: CreateForm = { slug: '', name: '', title: '', business_type: '
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 
 export function CustomerAdminPage() {
-  const { profile, myCustomer, loading: authLoading, signOut, deleteAccount, refreshCustomer } = useAuth()
+  const { profile, myCustomer, loading: authLoading, signOut, refreshCustomer } = useAuth()
   const { setTenant, reloadMemberships } = useTenant()
   const navigate = useNavigate()
 
@@ -30,7 +30,8 @@ export function CustomerAdminPage() {
   const [loading, setLoading]     = useState(true)
   const [message, setMessage]     = useState('')
 
-  const [showWithdrawModal, setShowWithdrawModal] = useState(false)
+  const [showDeletionModal, setShowDeletionModal] = useState(false)
+  const [deletionPending, setDeletionPending]     = useState(false)
   const [showCreate, setShowCreate] = useState(false)
   const [form, setForm]             = useState<CreateForm>(EMPTY_FORM)
   const [createSlots, setCreateSlots] = useState<string[]>(['09-10', '10-11', '11-12', '12-13', '13-14', '14-15', '15-16', '16-17', '17-18'])
@@ -63,6 +64,39 @@ export function CustomerAdminPage() {
     }
     load()
   }, [myCustomer])
+
+  async function requestDeletion() {
+    if (!myCustomer) return
+    setDeletionPending(true)
+    const { error } = await supabase
+      .from('customers')
+      .update({ is_active: false, deletion_requested_at: new Date().toISOString() })
+      .eq('id', myCustomer.id)
+    if (error) {
+      setMessage(`오류: ${error.message}`)
+      setDeletionPending(false)
+      return
+    }
+    await refreshCustomer()
+    setShowDeletionModal(false)
+    setDeletionPending(false)
+  }
+
+  async function cancelDeletion() {
+    if (!myCustomer) return
+    setDeletionPending(true)
+    const { error } = await supabase
+      .from('customers')
+      .update({ is_active: true, deletion_requested_at: null })
+      .eq('id', myCustomer.id)
+    if (error) {
+      setMessage(`오류: ${error.message}`)
+      setDeletionPending(false)
+      return
+    }
+    await refreshCustomer()
+    setDeletionPending(false)
+  }
 
   const createTenant = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
@@ -148,6 +182,12 @@ export function CustomerAdminPage() {
 
   if (!myCustomer) return null
 
+  const isDeletionPending = !!myCustomer.deletion_requested_at
+
+  function daysElapsed(iso: string) {
+    return Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000)
+  }
+
   const plan = myCustomer.plan as PlanType
   const limits = PLAN_LIMITS[plan]
   const atOrgLimit = tenants.length >= limits.maxOrgs
@@ -160,6 +200,24 @@ export function CustomerAdminPage() {
     <div className="min-h-screen bg-[var(--color-bg)]">
       <div className="max-w-[820px] mx-auto" style={{ padding: 'clamp(16px,3vw,30px) clamp(14px,4vw,26px) 90px' }}>
 
+        {isDeletionPending && (
+          <div className="mb-5 p-4 rounded-2xl border border-red-200 bg-red-50 flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-red-700">탈퇴 요청 중</p>
+              <p className="text-xs text-red-500 mt-0.5">
+                {daysElapsed(myCustomer.deletion_requested_at!)}일 경과 · 관리자 검토 후 완전 삭제됩니다. 30일 이내 취소 가능합니다.
+              </p>
+            </div>
+            <button
+              onClick={cancelDeletion}
+              disabled={deletionPending}
+              className="shrink-0 px-4 py-2 rounded-xl border border-red-300 bg-white text-red-600 text-sm font-semibold hover:bg-red-50 transition-colors disabled:opacity-50"
+            >
+              {deletionPending ? '처리 중...' : '탈퇴 취소'}
+            </button>
+          </div>
+        )}
+
         {/* Topbar */}
         <div className="flex items-center gap-[14px] mb-[clamp(18px,3vw,26px)]">
           <h1 className="m-0 text-[clamp(20px,5vw,26px)] font-extrabold tracking-[-0.8px]">
@@ -171,9 +229,14 @@ export function CustomerAdminPage() {
           <button onClick={signOut} className="ml-auto text-[13px] font-semibold text-[var(--color-text-muted)] px-3 py-2 rounded-[10px] hover:bg-[var(--color-surface)] transition-colors">
             로그아웃
           </button>
-          <button onClick={() => setShowWithdrawModal(true)} className="text-[12px] font-medium text-red-400 hover:text-red-500 px-2 py-2 rounded-[10px] hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors">
-            회원탈퇴
-          </button>
+          {!isDeletionPending && (
+            <button
+              onClick={() => setShowDeletionModal(true)}
+              className="text-[12px] font-medium text-red-400 hover:text-red-500 px-2 py-2 rounded-[10px] hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
+            >
+              서비스 탈퇴
+            </button>
+          )}
         </div>
 
         {/* Plan usage stats */}
@@ -211,9 +274,9 @@ export function CustomerAdminPage() {
         <div className="flex items-center gap-3 mb-4">
           <h2 className="m-0 text-[16px] font-bold tracking-[-0.3px] text-[var(--color-text-secondary)]">조직 목록</h2>
           <button
-            onClick={() => { if (atOrgLimit) { setMessage(`현재 플랜(${PLAN_LABELS[plan]})의 최대 조직 수(${limits.maxOrgs}개)에 도달했습니다.`); return } setShowCreate(v => !v) }}
-            disabled={atOrgLimit}
-            title={atOrgLimit ? `플랜 한도 초과 (최대 ${limits.maxOrgs}개)` : '새 조직 추가'}
+            onClick={() => { if (isDeletionPending) { setMessage('탈퇴 요청 중에는 새 조직을 생성할 수 없습니다.'); return } if (atOrgLimit) { setMessage(`현재 플랜(${PLAN_LABELS[plan]})의 최대 조직 수(${limits.maxOrgs}개)에 도달했습니다.`); return } setShowCreate(v => !v) }}
+            disabled={atOrgLimit || isDeletionPending}
+            title={isDeletionPending ? '탈퇴 요청 중입니다' : atOrgLimit ? `플랜 한도 초과 (최대 ${limits.maxOrgs}개)` : '새 조직 추가'}
             className="ml-auto inline-flex items-center justify-center gap-[6px] h-[40px] px-[17px] rounded-[11px] text-[13.5px] font-bold text-white transition-colors hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
             style={{ background: 'var(--color-brand-primary)' }}
           >
@@ -315,13 +378,15 @@ export function CustomerAdminPage() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => { setTenant(t, 'admin'); navigate('/schedule') }}
-                  className="flex-1 sm:flex-none inline-flex items-center justify-center h-[38px] px-4 rounded-[9px] text-[13px] font-semibold border border-[var(--color-border-strong)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-secondary)] transition-colors"
+                  disabled={isDeletionPending || t.is_active === false}
+                  className="flex-1 sm:flex-none inline-flex items-center justify-center h-[38px] px-4 rounded-[9px] text-[13px] font-semibold border border-[var(--color-border-strong)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-secondary)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   스케줄
                 </button>
                 <button
                   onClick={() => { setTenant(t, 'admin'); navigate('/admin') }}
-                  className="flex-1 sm:flex-none inline-flex items-center justify-center h-[38px] px-4 rounded-[9px] text-[13px] font-semibold text-white hover:opacity-90 transition-colors"
+                  disabled={isDeletionPending || t.is_active === false}
+                  className="flex-1 sm:flex-none inline-flex items-center justify-center h-[38px] px-4 rounded-[9px] text-[13px] font-semibold text-white hover:opacity-90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   style={{ background: 'var(--color-brand-primary)' }}
                 >
                   관리
@@ -334,29 +399,34 @@ export function CustomerAdminPage() {
       </div>
     </div>
 
-    {/* 회원탈퇴 확인 모달 */}
-    {showWithdrawModal && (
+    {/* 서비스 탈퇴 요청 확인 모달 */}
+    {showDeletionModal && (
       <>
-        <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(20,23,28,0.45)', backdropFilter: 'blur(4px)' }} onClick={() => setShowWithdrawModal(false)} />
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(20,23,28,0.45)', backdropFilter: 'blur(4px)' }}
+          onClick={() => setShowDeletionModal(false)}
+        />
         <div style={{ position: 'fixed', inset: 0, zIndex: 101, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <div style={{ background: 'var(--color-surface, #fff)', border: '1px solid rgba(20,23,28,0.09)', borderRadius: 18, padding: '24px 24px 20px', width: '100%', maxWidth: 340, boxShadow: '0 22px 60px -28px rgba(20,23,28,0.30)', fontFamily: 'inherit' }}>
-            <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-text-primary, #14171C)', margin: '0 0 8px' }}>계정을 삭제하시겠어요?</h2>
+          <div style={{ background: 'var(--color-surface, #fff)', border: '1px solid rgba(20,23,28,0.09)', borderRadius: 18, padding: '24px 24px 20px', width: '100%', maxWidth: 360, boxShadow: '0 22px 60px -28px rgba(20,23,28,0.30)', fontFamily: 'inherit' }}>
+            <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-text-primary, #14171C)', margin: '0 0 8px' }}>
+              서비스 탈퇴를 요청하시겠어요?
+            </h2>
             <p style={{ fontSize: 13, color: 'var(--color-text-secondary, #6B7280)', lineHeight: 1.6, margin: '0 0 20px' }}>
-              서비스 계정({myCustomer?.name})과 모든 데이터가 영구 삭제됩니다. 이 작업은 되돌릴 수 없습니다.
+              요청 즉시 모든 조직이 비활성화됩니다. 관리자 검토 후 완전 삭제되며,
+              <strong> 30일 이내에 취소</strong>할 수 있습니다.
             </p>
             <button
-              onClick={async () => {
-                setShowWithdrawModal(false)
-                const err = await deleteAccount()
-                if (err) alert(err)
-              }}
-              style={{ width: '100%', padding: '12px 16px', textAlign: 'left', borderRadius: 12, border: '1px solid oklch(0.88 0.06 25)', background: 'oklch(0.98 0.02 25)', cursor: 'pointer', fontFamily: 'inherit', marginBottom: 8 }}
+              onClick={requestDeletion}
+              disabled={deletionPending}
+              style={{ width: '100%', padding: '12px 16px', textAlign: 'left', borderRadius: 12, border: '1px solid oklch(0.88 0.06 25)', background: 'oklch(0.98 0.02 25)', cursor: 'pointer', fontFamily: 'inherit', marginBottom: 8, opacity: deletionPending ? 0.5 : 1 }}
             >
-              <div style={{ fontSize: 13.5, fontWeight: 600, color: 'oklch(0.45 0.15 25)' }}>전체 계정 삭제</div>
-              <div style={{ fontSize: 12, color: 'oklch(0.60 0.10 25)', marginTop: 2 }}>계정과 모든 조직 데이터를 완전히 삭제합니다.</div>
+              <div style={{ fontSize: 13.5, fontWeight: 600, color: 'oklch(0.45 0.15 25)' }}>탈퇴 요청</div>
+              <div style={{ fontSize: 12, color: 'oklch(0.60 0.10 25)', marginTop: 2 }}>
+                서비스가 즉시 중단되며 관리자 검토 후 완전 삭제됩니다.
+              </div>
             </button>
             <button
-              onClick={() => setShowWithdrawModal(false)}
+              onClick={() => setShowDeletionModal(false)}
               style={{ width: '100%', height: 38, fontSize: 13, color: 'var(--color-text-muted, #8A8F99)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
             >
               취소

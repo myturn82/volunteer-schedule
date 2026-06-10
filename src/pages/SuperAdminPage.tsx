@@ -90,6 +90,10 @@ export function SuperAdminPage() {
   const [customerForm, setCustomerForm] = useState({ name: '', ownerEmail: '', plan: 'basic' as PlanType })
   const [customerSaving, setCustomerSaving] = useState(false)
   const [createOrgCustomerId, setCreateOrgCustomerId] = useState<string>('')
+  const [deletionRequests, setDeletionRequests]   = useState<Customer[]>([])
+  const [restoringId, setRestoringId]             = useState<string | null>(null)
+  const [hardDeleteConfirm, setHardDeleteConfirm] = useState<Customer | null>(null)
+  const [hardDeleteSaving, setHardDeleteSaving]   = useState(false)
 
   // Org list filter
   const [filterCustomerId, setFilterCustomerId] = useState('')
@@ -140,10 +144,55 @@ export function SuperAdminPage() {
   }
 
   async function fetchCustomers() {
-    const { data } = await supabase.from('customers').select('*').order('created_at')
-    const list = (data ?? []) as Customer[]
+    const [custRes, delRes] = await Promise.all([
+      supabase.from('customers').select('*').order('created_at'),
+      supabase.from('customers').select('*').not('deletion_requested_at', 'is', null).order('deletion_requested_at', { ascending: true }),
+    ])
+    const list = (custRes.data ?? []) as Customer[]
     setCustomers(list)
+    setDeletionRequests((delRes.data ?? []) as Customer[])
     loadOwnerEmails(list)
+  }
+
+  async function restoreCustomer(customer: Customer) {
+    setRestoringId(customer.id)
+    const { error } = await supabase
+      .from('customers')
+      .update({ is_active: true, deletion_requested_at: null })
+      .eq('id', customer.id)
+    if (error) {
+      setMessage(`복구 오류: ${error.message}`)
+    } else {
+      setDeletionRequests(prev => prev.filter(c => c.id !== customer.id))
+      setCustomers(prev => prev.map(c =>
+        c.id === customer.id ? { ...c, is_active: true, deletion_requested_at: null } : c
+      ))
+      setMessage(`'${customer.name}' 계정이 복구됐습니다.`)
+    }
+    setRestoringId(null)
+  }
+
+  async function executeHardDelete() {
+    if (!hardDeleteConfirm) return
+    setHardDeleteSaving(true)
+    try {
+      const { error } = await supabase
+        .from('customers')
+        .delete()
+        .eq('id', hardDeleteConfirm.id)
+      if (error) {
+        setMessage(`삭제 오류: ${error.message}`)
+      } else {
+        const deletedId = hardDeleteConfirm.id
+        setDeletionRequests(prev => prev.filter(c => c.id !== deletedId))
+        setCustomers(prev => prev.filter(c => c.id !== deletedId))
+        setTenants(prev => prev.filter(t => t.customer_id !== deletedId))
+        setMessage(`'${hardDeleteConfirm.name}' 계정이 완전히 삭제됐습니다.`)
+      }
+    } finally {
+      setHardDeleteSaving(false)
+      setHardDeleteConfirm(null)
+    }
   }
 
   async function createCustomer(e: React.FormEvent) {
@@ -377,6 +426,10 @@ export function SuperAdminPage() {
 
   const createTenant = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!createOrgCustomerId) {
+      setMessage('오류: 조직을 생성할 고객 계정을 선택해 주세요.')
+      return
+    }
     const slugTrimmed = form.slug.trim()
     if (!SLUG_RE.test(slugTrimmed)) {
       setMessage('오류: Slug는 소문자 영문·숫자와 하이픈(-)만 사용할 수 있습니다. (예: my-org)')
@@ -402,7 +455,7 @@ export function SuperAdminPage() {
         slug: slugTrimmed,
         name: form.name.trim(),
         business_type: form.business_type.trim() || null,
-        customer_id: createOrgCustomerId || null,
+        customer_id: createOrgCustomerId,
         settings: {
           title: form.title.trim() || form.name.trim(),
           theme_color: form.theme_color.trim() || undefined,
@@ -616,6 +669,50 @@ export function SuperAdminPage() {
           </div>
         )}
 
+        {/* 탈퇴 요청 중 고객 */}
+        {deletionRequests.length > 0 && (
+          <section className="mb-8">
+            <h2 className="text-[15px] font-bold text-red-600 mb-3">
+              탈퇴 요청 중 ({deletionRequests.length})
+            </h2>
+            <ul className="flex flex-col gap-2">
+              {deletionRequests.map(c => {
+                if (!c.deletion_requested_at) return null
+                const elapsed = Math.floor((Date.now() - new Date(c.deletion_requested_at).getTime()) / 86_400_000)
+                const canDelete = elapsed >= 30
+                return (
+                  <li key={c.id} className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-2xl px-4 py-3">
+                    <div className="flex-1 min-w-0">
+                      <span className="font-semibold text-sm text-[var(--color-text-primary)]">{c.name}</span>
+                      <span className="ml-2 text-xs text-red-500">{elapsed}일 경과</span>
+                      {canDelete && (
+                        <span className="ml-2 text-[11px] font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded">삭제 가능</span>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => restoreCustomer(c)}
+                      disabled={restoringId === c.id}
+                      className="px-3 py-1.5 rounded-lg border border-[var(--color-border)] bg-white text-xs font-semibold text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors disabled:opacity-50"
+                    >
+                      복구
+                    </button>
+                    <button
+                      onClick={() => setHardDeleteConfirm(c)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                        canDelete
+                          ? 'bg-red-600 text-white hover:bg-red-700'
+                          : 'border border-red-300 text-red-500 hover:bg-red-100'
+                      }`}
+                    >
+                      완전 삭제{!canDelete && ' ⚠'}
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          </section>
+        )}
+
         {/* ── 고객 관리 ── */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-4 flex-wrap">
@@ -771,7 +868,7 @@ export function SuperAdminPage() {
               </div>
               {deleteCustomerConfirm.tenantCount > 0 && (
                 <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-xs text-amber-700 dark:text-amber-400">
-                  소속 조직 {deleteCustomerConfirm.tenantCount}개의 고객 연결이 해제됩니다. 조직 데이터는 삭제되지 않습니다.
+                  소속 조직 {deleteCustomerConfirm.tenantCount}개와 모든 데이터(배정, 회원 등)가 영구 삭제됩니다.
                 </div>
               )}
               <p className="text-xs text-red-500">이 작업은 되돌릴 수 없습니다. 고객명을 입력해 확인하세요.</p>
@@ -1164,6 +1261,39 @@ export function SuperAdminPage() {
           )
         })()}
       </div>
+
+      {/* 완전 삭제 확인 모달 */}
+      {hardDeleteConfirm && (
+        <>
+          <div
+            style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(20,23,28,0.55)', backdropFilter: 'blur(4px)' }}
+            onClick={() => { if (!hardDeleteSaving) setHardDeleteConfirm(null) }}
+          />
+          <div style={{ position: 'fixed', inset: 0, zIndex: 201, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+            <div style={{ background: 'var(--color-surface, #fff)', borderRadius: 18, padding: '24px', width: '100%', maxWidth: 360, boxShadow: '0 22px 60px -28px rgba(20,23,28,0.35)', fontFamily: 'inherit' }}>
+              <h2 style={{ fontSize: 16, fontWeight: 700, color: '#14171C', margin: '0 0 8px' }}>완전 삭제 확인</h2>
+              <p style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.6, margin: '0 0 20px' }}>
+                <strong>{hardDeleteConfirm.name}</strong> 계정과 소속된 모든 조직, 배정, 회원 데이터가
+                영구 삭제됩니다. <strong>이 작업은 되돌릴 수 없습니다.</strong>
+              </p>
+              <button
+                onClick={executeHardDelete}
+                disabled={hardDeleteSaving}
+                style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: 'none', background: '#dc2626', color: '#fff', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 600, marginBottom: 8, opacity: hardDeleteSaving ? 0.5 : 1 }}
+              >
+                {hardDeleteSaving ? '삭제 중...' : '완전 삭제'}
+              </button>
+              <button
+                onClick={() => setHardDeleteConfirm(null)}
+                disabled={hardDeleteSaving}
+                style={{ width: '100%', height: 38, fontSize: 13, color: '#8A8F99', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
+              >
+                취소
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }

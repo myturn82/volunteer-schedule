@@ -87,6 +87,7 @@ export interface Customer {
   plan: PlanType
   plan_expires_at: string | null
   is_active: boolean
+  deletion_requested_at: string | null
   created_at: string
   updated_at: string
 }
@@ -98,7 +99,7 @@ export interface Tenant {
   business_type: string | null;
   settings: TenantSettings;
   is_active: boolean;
-  customer_id: string | null;
+  customer_id: string;
   created_at: string;
   updated_at: string;
 }
