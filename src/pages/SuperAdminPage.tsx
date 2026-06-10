@@ -143,6 +143,12 @@ export function SuperAdminPage() {
     setOwnerSaving(false)
   }
 
+  async function fetchTenants() {
+    const { data, error } = await supabase.from('tenants').select('*').order('created_at')
+    if (error) setMessage(`테넌트 로드 오류: ${error.message}`)
+    else setTenants(data ?? [])
+  }
+
   async function fetchCustomers() {
     const [custRes, delRes] = await Promise.all([
       supabase.from('customers').select('*').order('created_at'),
@@ -167,6 +173,7 @@ export function SuperAdminPage() {
       setCustomers(prev => prev.map(c =>
         c.id === customer.id ? { ...c, is_active: true, deletion_requested_at: null } : c
       ))
+      await fetchTenants()
       setMessage(`'${customer.name}' 계정이 복구됐습니다.`)
     }
     setRestoringId(null)
@@ -186,7 +193,7 @@ export function SuperAdminPage() {
         const deletedId = hardDeleteConfirm.id
         setDeletionRequests(prev => prev.filter(c => c.id !== deletedId))
         setCustomers(prev => prev.filter(c => c.id !== deletedId))
-        setTenants(prev => prev.filter(t => t.customer_id !== deletedId))
+        await fetchTenants()
         setMessage(`'${hardDeleteConfirm.name}' 계정이 완전히 삭제됐습니다.`)
       }
     } finally {
@@ -256,6 +263,7 @@ export function SuperAdminPage() {
       setMessage(`오류: ${error.message}`)
     } else {
       setCustomers(prev => prev.filter(c => c.id !== deleteCustomerConfirm.customer.id))
+      await fetchTenants()
       setMessage('고객이 삭제됐습니다.')
     }
     setDeleteCustomerConfirm(null)
@@ -270,7 +278,10 @@ export function SuperAdminPage() {
       .select()
       .single()
     if (error) setMessage(`오류: ${error.message}`)
-    else if (data) setCustomers(prev => prev.map(c => c.id === customer.id ? data as Customer : c))
+    else if (data) {
+      setCustomers(prev => prev.map(c => c.id === customer.id ? data as Customer : c))
+      await fetchTenants()
+    }
   }
 
   async function fetchPendingMembers() {

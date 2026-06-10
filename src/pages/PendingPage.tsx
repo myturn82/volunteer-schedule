@@ -162,7 +162,7 @@ export function PendingPage() {
   }
 
   function resetForm() {
-    setShowForm(false); setAllTenants([]); setSelCustomerId(''); setSelTenantId('')
+    setShowForm(false); setMode('choose'); setAllTenants([]); setSelCustomerId(''); setSelTenantId('')
     setSelTenantRoles(null); setSelRole(null); setLoadingRoles(false); setError(null)
   }
 
