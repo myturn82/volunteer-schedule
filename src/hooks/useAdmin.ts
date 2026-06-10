@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
-import { PLAN_LIMITS, PLAN_LABELS } from '../types'
+import { PLAN_LABELS } from '../types'
+import { usePlanLimits } from '../contexts/PlanLimitsContext'
 import type { Profile, ScheduleRule, DateOverride, TenantSettings, TenantMemberWithRole, TenantAccessRole, PlanType } from '../types'
 
 interface AdminState {
@@ -26,6 +27,7 @@ interface AdminState {
 }
 
 export function useAdmin(tenantId: string): AdminState {
+  const { planLimits } = usePlanLimits()
   const [members, setMembers] = useState<TenantMemberWithRole[]>([])
   const [scheduleRules, setScheduleRules] = useState<ScheduleRule[]>([])
   const [dateOverrides, setDateOverrides] = useState<DateOverride[]>([])
@@ -83,7 +85,7 @@ export function useAdmin(tenantId: string): AdminState {
         .maybeSingle()
       if (customerData?.plan) {
         const plan = customerData.plan as PlanType
-        const limit = PLAN_LIMITS[plan].maxUsers
+        const limit = planLimits[plan].maxUsers
         if (limit !== Infinity) {
           const { count } = await supabase
             .from('tenant_members')
@@ -114,7 +116,7 @@ export function useAdmin(tenantId: string): AdminState {
     if (error) return error.message
     if (data) setMembers(prev => [...prev, data as unknown as TenantMemberWithRole])
     return null
-  }, [tenantId])
+  }, [tenantId, planLimits])
 
   const removeMember = useCallback(async (userId: string): Promise<string | null> => {
     const { error } = await supabase

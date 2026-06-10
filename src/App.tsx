@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
+import { PlanLimitsProvider } from './contexts/PlanLimitsContext'
 import { TenantProvider, useTenant } from './contexts/TenantContext'
 import { useAuth } from './hooks/useAuth'
 import { useCustomerAdmin } from './hooks/useCustomerAdmin'
@@ -123,9 +124,11 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <TenantProvider>
-          <AppRoutes />
-        </TenantProvider>
+        <PlanLimitsProvider>
+          <TenantProvider>
+            <AppRoutes />
+          </TenantProvider>
+        </PlanLimitsProvider>
       </AuthProvider>
     </BrowserRouter>
   )

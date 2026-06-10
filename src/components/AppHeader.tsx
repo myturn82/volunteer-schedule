@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { useCustomerAdmin } from '../hooks/useCustomerAdmin'
 import { useTenant } from '../contexts/TenantContext'
 import { DashboardNav } from './DashboardNav'
 import { ProfileModal } from './auth/ProfileModal'
@@ -18,6 +19,7 @@ interface AppHeaderProps {
 export function AppHeader({ funcMenuItems, leftSlot, memberSelectSlot, rightSlot, roleLabel, onShowLogin }: AppHeaderProps) {
   const navigate = useNavigate()
   const { profile, loading: authLoading, signOut, deleteAccount, linkGoogle, linkKakao, getIdentities } = useAuth()
+  const { isCustomerAdmin } = useCustomerAdmin()
   const { tenant, tenantRole, memberships, resetTenantSelection, reloadMemberships } = useTenant()
   const [showFuncMenu, setShowFuncMenu] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
@@ -27,7 +29,7 @@ export function AppHeader({ funcMenuItems, leftSlot, memberSelectSlot, rightSlot
   const [joinSuccessMsg, setJoinSuccessMsg] = useState<string | null>(null)
 
   const isPrivileged = profile?.is_super_admin || tenantRole === 'admin'
-  const showHamburger = !!isPrivileged
+  const showHamburger = !!isPrivileged || isCustomerAdmin
 
   const menuBtn = 'w-full text-left px-3 py-2 text-sm rounded-xl text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors'
   const sep = <div className="h-px bg-[var(--color-border)] mx-1 my-1" />
@@ -108,6 +110,17 @@ export function AppHeader({ funcMenuItems, leftSlot, memberSelectSlot, rightSlot
                       <span className="flex items-center gap-2.5">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                         조직관리
+                      </span>
+                    </button>
+                    {sep}
+                  </>
+                )}
+                {(isCustomerAdmin && !profile?.is_super_admin) && (
+                  <>
+                    <button onClick={() => { navigate('/customer-admin'); setShowFuncMenu(false) }} className={menuBtn}>
+                      <span className="flex items-center gap-2.5">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 9h.01M9 13h.01M9 17h.01M15 9h.01M15 13h.01M15 17h.01"/></svg>
+                        고객 어드민
                       </span>
                     </button>
                     {sep}

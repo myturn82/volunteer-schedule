@@ -5,8 +5,15 @@ import { useAuth } from '../hooks/useAuth'
 import { useTenant } from '../contexts/TenantContext'
 import { SlotEditor } from '../components/shared/SlotEditor'
 import { IndustryPicker } from '../components/IndustryPicker'
-import { PLAN_LABELS, PLAN_LIMITS } from '../types'
+import { colorOf, initialsOf } from '../lib/avatarColor'
+import { OrgTreeView } from '../components/superadmin/OrgTreeView'
+import { OrgDiagramView } from '../components/superadmin/OrgDiagramView'
+import { OrgCardsView } from '../components/superadmin/OrgCardsView'
+import type { HubView } from '../components/superadmin/HubMain'
+import { usePlanLimits } from '../contexts/PlanLimitsContext'
+import { PLAN_LABELS } from '../types'
 import type { Tenant, TenantMode, PlanType } from '../types'
+import '../styles/account-hub.css'
 
 interface CreateForm {
   slug: string
@@ -23,12 +30,19 @@ const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 export function CustomerAdminPage() {
   const { profile, myCustomer, loading: authLoading, signOut, refreshCustomer } = useAuth()
   const { setTenant, reloadMemberships } = useTenant()
+  const { planLimits } = usePlanLimits()
   const navigate = useNavigate()
 
   const [tenants, setTenants]     = useState<Tenant[]>([])
   const [totalUsers, setTotalUsers] = useState(0)
+  const [memberCounts, setMemberCounts] = useState<Record<string, number>>({})
+  const [pendingCounts, setPendingCounts] = useState<Record<string, number>>({})
   const [loading, setLoading]     = useState(true)
   const [message, setMessage]     = useState('')
+
+  // Account Hub navigation state
+  const [view, setView] = useState<HubView>('tree')
+  const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null)
 
   const [showDeletionModal, setShowDeletionModal] = useState(false)
   const [deletionPending, setDeletionPending]     = useState(false)
@@ -53,12 +67,20 @@ export function CustomerAdminPage() {
       setTenants(list)
 
       if (list.length > 0) {
-        const { count } = await supabase
+        const { data: memberData } = await supabase
           .from('tenant_members')
-          .select('*', { count: 'exact', head: true })
+          .select('tenant_id, is_approved')
           .in('tenant_id', list.map(t => t.id))
-          .eq('is_approved', true)
-        setTotalUsers(count ?? 0)
+        const approved: Record<string, number> = {}
+        const pending: Record<string, number> = {}
+        let approvedTotal = 0
+        for (const row of memberData ?? []) {
+          if (row.is_approved) { approved[row.tenant_id] = (approved[row.tenant_id] ?? 0) + 1; approvedTotal++ }
+          else pending[row.tenant_id] = (pending[row.tenant_id] ?? 0) + 1
+        }
+        setMemberCounts(approved)
+        setPendingCounts(pending)
+        setTotalUsers(approvedTotal)
       }
       setLoading(false)
     }
@@ -102,7 +124,7 @@ export function CustomerAdminPage() {
     e.preventDefault()
     if (!myCustomer) return
     const plan = myCustomer.plan as PlanType
-    const limits = PLAN_LIMITS[plan]
+    const limits = planLimits[plan]
     if (tenants.length >= limits.maxOrgs) {
       setMessage(`현재 플랜(${PLAN_LABELS[plan]})의 최대 조직 수(${limits.maxOrgs}개)에 도달했습니다. 플랜을 업그레이드해 주세요.`)
       return
@@ -174,7 +196,7 @@ export function CustomerAdminPage() {
       setMessage('조직이 생성됐습니다.')
     }
     setSaving(false)
-  }, [form, createSlots, myCustomer, tenants.length, profile])
+  }, [form, createSlots, myCustomer, tenants.length, profile, refreshCustomer, reloadMemberships, planLimits])
 
   if (authLoading || loading) {
     return <div className="min-h-screen flex items-center justify-center text-[var(--color-text-secondary)]">로딩 중...</div>
@@ -189,79 +211,46 @@ export function CustomerAdminPage() {
   }
 
   const plan = myCustomer.plan as PlanType
-  const limits = PLAN_LIMITS[plan]
+  const limits = planLimits[plan]
   const atOrgLimit = tenants.length >= limits.maxOrgs
   const atUserLimit = totalUsers >= limits.maxUsers
+  const totalSlots = tenants.reduce((sum, t) => sum + (t.settings?.time_slots?.length ?? 0), 0)
+  const totalPending = tenants.reduce((sum, t) => sum + (pendingCounts[t.id] ?? 0), 0)
+  const selectedTenant = tenants.find(t => t.id === selectedTenantId) ?? null
 
   const inputCls = 'w-full px-3 py-2 rounded-xl border border-[var(--color-border-strong)] bg-[var(--color-surface)] text-[var(--color-text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-primary)]/30 focus:border-[var(--color-brand-primary)]'
+
+  const customerColor = colorOf(myCustomer.name)
+
+  function handleSelectOrg(id: string) {
+    setSelectedTenantId(prev => prev === id ? null : id)
+  }
 
   return (
     <>
     <div className="min-h-screen bg-[var(--color-bg)]">
-      <div className="max-w-[820px] mx-auto" style={{ padding: 'clamp(16px,3vw,30px) clamp(14px,4vw,26px) 90px' }}>
-
-        {isDeletionPending && (
-          <div className="mb-5 p-4 rounded-2xl border border-red-200 bg-red-50 flex flex-col sm:flex-row sm:items-center gap-3">
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-red-700">탈퇴 요청 중</p>
-              <p className="text-xs text-red-500 mt-0.5">
-                {daysElapsed(myCustomer.deletion_requested_at!)}일 경과 · 관리자 검토 후 완전 삭제됩니다. 30일 이내 취소 가능합니다.
-              </p>
-            </div>
-            <button
-              onClick={cancelDeletion}
-              disabled={deletionPending}
-              className="shrink-0 px-4 py-2 rounded-xl border border-red-300 bg-white text-red-600 text-sm font-semibold hover:bg-red-50 transition-colors disabled:opacity-50"
-            >
-              {deletionPending ? '처리 중...' : '탈퇴 취소'}
-            </button>
-          </div>
-        )}
+      <div className="max-w-[1400px] mx-auto" style={{ padding: 'clamp(16px,3vw,30px) clamp(14px,4vw,26px) 90px' }}>
 
         {/* Topbar */}
         <div className="flex items-center gap-[14px] mb-[clamp(18px,3vw,26px)]">
-          <h1 className="m-0 text-[clamp(20px,5vw,26px)] font-extrabold tracking-[-0.8px]">
-            {myCustomer.name}
+          <h1 className="m-0 text-[clamp(20px,5vw,26px)] font-extrabold tracking-[-0.8px] flex items-center gap-[10px] whitespace-nowrap min-w-0">
+            <span className="hub-avatar is-lg flex-shrink-0" style={{ background: customerColor.bg, color: customerColor.fg }}>{initialsOf(myCustomer.name)}</span>
+            <span className="truncate">{myCustomer.name}</span>
           </h1>
-          <span className="text-xs font-bold px-3 py-1 rounded-full" style={{ background: 'oklch(0.95 0.045 28)', color: 'oklch(0.45 0.14 28)' }}>
+          <span className="text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap" style={{ background: 'oklch(0.95 0.045 28)', color: 'oklch(0.45 0.14 28)' }}>
             {PLAN_LABELS[plan]}
           </span>
-          <button onClick={signOut} className="ml-auto text-[13px] font-semibold text-[var(--color-text-muted)] px-3 py-2 rounded-[10px] hover:bg-[var(--color-surface)] transition-colors">
-            로그아웃
-          </button>
           {!isDeletionPending && (
             <button
               onClick={() => setShowDeletionModal(true)}
-              className="text-[12px] font-medium text-red-400 hover:text-red-500 px-2 py-2 rounded-[10px] hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
+              className="text-[12px] font-medium text-red-400 hover:text-red-500 px-2 py-2 rounded-[10px] hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors whitespace-nowrap"
             >
               서비스 탈퇴
             </button>
           )}
-        </div>
-
-        {/* Plan usage stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
-          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-4">
-            <p className="text-xs text-[var(--color-text-muted)] mb-1">조직</p>
-            <p className={`text-xl font-bold ${atOrgLimit ? 'text-red-500' : 'text-[var(--color-text-primary)]'}`}>
-              {tenants.length}
-              <span className="text-sm font-normal text-[var(--color-text-muted)] ml-1">/ {limits.maxOrgs === Infinity ? '무제한' : limits.maxOrgs}</span>
-            </p>
-          </div>
-          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-4">
-            <p className="text-xs text-[var(--color-text-muted)] mb-1">회원</p>
-            <p className={`text-xl font-bold ${atUserLimit ? 'text-red-500' : 'text-[var(--color-text-primary)]'}`}>
-              {totalUsers}
-              <span className="text-sm font-normal text-[var(--color-text-muted)] ml-1">/ {limits.maxUsers === Infinity ? '무제한' : limits.maxUsers}</span>
-            </p>
-          </div>
-          <div className="col-span-2 sm:col-span-1 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-4 flex flex-col justify-between">
-            <p className="text-xs text-[var(--color-text-muted)] mb-2">플랜 업그레이드</p>
-            <a href="mailto:support@example.com?subject=플랜 업그레이드 문의"
-              className="text-xs font-semibold text-[var(--color-brand-primary)] hover:underline">
-              업그레이드 문의 →
-            </a>
-          </div>
+          <button onClick={signOut} className="ml-auto text-[13px] font-semibold text-[var(--color-text-muted)] px-3 py-2 rounded-[10px] hover:bg-[var(--color-surface)] transition-colors whitespace-nowrap">
+            로그아웃
+          </button>
         </div>
 
         {message && (
@@ -270,131 +259,210 @@ export function CustomerAdminPage() {
           </div>
         )}
 
-        {/* Org list header */}
-        <div className="flex items-center gap-3 mb-4">
-          <h2 className="m-0 text-[16px] font-bold tracking-[-0.3px] text-[var(--color-text-secondary)]">조직 목록</h2>
-          <button
-            onClick={() => { if (isDeletionPending) { setMessage('탈퇴 요청 중에는 새 조직을 생성할 수 없습니다.'); return } if (atOrgLimit) { setMessage(`현재 플랜(${PLAN_LABELS[plan]})의 최대 조직 수(${limits.maxOrgs}개)에 도달했습니다.`); return } setShowCreate(v => !v) }}
-            disabled={atOrgLimit || isDeletionPending}
-            title={isDeletionPending ? '탈퇴 요청 중입니다' : atOrgLimit ? `플랜 한도 초과 (최대 ${limits.maxOrgs}개)` : '새 조직 추가'}
-            className="ml-auto inline-flex items-center justify-center gap-[6px] h-[40px] px-[17px] rounded-[11px] text-[13.5px] font-bold text-white transition-colors hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
-            style={{ background: 'var(--color-brand-primary)' }}
-          >
-            + 새 조직
-          </button>
-        </div>
+        {/* ── Account Hub ── */}
+        <div className="hub">
+          <div className="hub-main">
+            <div className="hub-breadcrumb">
+              <span>계정 허브</span>
+              <span>›</span>
+              <b>{myCustomer.name}</b>
+            </div>
 
-        {/* Create form */}
-        {showCreate && (
-          <form onSubmit={createTenant} className="mb-6 p-5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] space-y-4">
-            <h3 className="font-semibold text-[var(--color-text-primary)]">새 조직 만들기</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {([
-                { key: 'slug',        label: 'Slug (소문자+하이픈)', placeholder: 'my-org',    required: true  },
-                { key: 'name',        label: '조직명',               placeholder: '홍길동 미용실', required: true  },
-                { key: 'title',       label: '페이지 타이틀 (선택)',  placeholder: '스케줄'                    },
-                { key: 'theme_color', label: '테마 색상 (선택)',      placeholder: '#2563eb'                   },
-              ] as { key: keyof CreateForm; label: string; placeholder: string; required?: boolean }[]).map(f => (
-                <div key={f.key}>
-                  <label className="block text-xs text-[var(--color-text-secondary)] mb-1">{f.label}</label>
-                  <input
-                    type="text"
-                    placeholder={f.placeholder}
-                    required={f.required}
-                    value={form[f.key]}
-                    onChange={e => setForm(prev => ({ ...prev, [f.key]: e.target.value }))}
-                    className={inputCls}
-                  />
+            <div className="hub-hero">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <a href="mailto:support@example.com?subject=플랜 업그레이드 문의"
+                  className="text-xs font-semibold text-[var(--color-brand-primary)] hover:underline">
+                  업그레이드 문의 →
+                </a>
+                <span className="text-[var(--color-text-muted)] text-xs">가입일 {myCustomer.created_at.slice(0, 10)}</span>
+              </div>
+
+              {isDeletionPending && (
+                <div className="mt-4 flex items-center gap-3 bg-red-50 border border-red-200 rounded-2xl px-4 py-3 flex-wrap">
+                  <div className="flex-1 min-w-0">
+                    <span className="font-semibold text-sm text-[var(--color-text-primary)]">탈퇴 요청 중</span>
+                    <span className="ml-2 text-xs text-red-500">{daysElapsed(myCustomer.deletion_requested_at!)}일 경과</span>
+                    <span className="ml-2 text-xs text-[var(--color-text-muted)]">관리자 검토 후 완전 삭제됩니다. 30일 이내 취소 가능합니다.</span>
+                  </div>
+                  <button
+                    onClick={cancelDeletion}
+                    disabled={deletionPending}
+                    className="px-3 py-1.5 rounded-lg border border-red-300 bg-white text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                  >
+                    {deletionPending ? '처리 중...' : '탈퇴 취소'}
+                  </button>
                 </div>
-              ))}
-              <div className="sm:col-span-2">
-                <IndustryPicker
-                  value={form.business_type}
-                  onChange={v => setForm(prev => ({ ...prev, business_type: v }))}
-                  inputCls={inputCls}
-                />
+              )}
+
+              <div className="hub-stats">
+                <div className="hub-stat">
+                  <div className={`hub-stat-value ${atOrgLimit ? 'text-red-500' : ''}`}>
+                    {tenants.length}
+                    <span className="text-sm font-normal text-[var(--color-text-muted)] ml-1">/ {limits.maxOrgs === Infinity ? '무제한' : limits.maxOrgs}</span>
+                  </div>
+                  <div className="hub-stat-label">조직</div>
+                </div>
+                <div className="hub-stat">
+                  <div className={`hub-stat-value ${atUserLimit ? 'text-red-500' : ''}`}>
+                    {totalUsers}
+                    <span className="text-sm font-normal text-[var(--color-text-muted)] ml-1">/ {limits.maxUsers === Infinity ? '무제한' : limits.maxUsers}</span>
+                  </div>
+                  <div className="hub-stat-label">활성 멤버</div>
+                </div>
+                <div className="hub-stat">
+                  <div className="hub-stat-value">{totalSlots}</div>
+                  <div className="hub-stat-label">슬롯 합계</div>
+                </div>
+                <div className="hub-stat">
+                  <div className="hub-stat-value">{totalPending}</div>
+                  <div className="hub-stat-label">승인 대기</div>
+                </div>
               </div>
             </div>
 
-            <div>
-              <label className="block text-xs text-[var(--color-text-secondary)] mb-2">운영 모드</label>
-              <div className="flex gap-3">
-                {(['회원공유', '회원개별', '비회원'] as const).map(mode => (
-                  <label key={mode} className="flex items-center gap-1.5 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="tenant_mode_ca"
-                      value={mode}
-                      checked={form.tenant_mode === mode}
-                      onChange={() => setForm(prev => ({ ...prev, tenant_mode: mode }))}
-                      className="accent-[var(--color-brand-primary)]"
+            {/* ── View switcher + create ── */}
+            <div className="flex items-center gap-3 flex-wrap mb-3">
+              <div className="hub-view-switch">
+                <button onClick={() => setView('tree')} className={`hub-view-btn ${view === 'tree' ? 'is-active' : ''}`}>트리</button>
+                <button onClick={() => setView('diagram')} className={`hub-view-btn ${view === 'diagram' ? 'is-active' : ''}`}>다이어그램</button>
+                <button onClick={() => setView('cards')} className={`hub-view-btn ${view === 'cards' ? 'is-active' : ''}`}>카드</button>
+              </div>
+              <button
+                onClick={() => {
+                  if (isDeletionPending) { setMessage('탈퇴 요청 중에는 새 조직을 생성할 수 없습니다.'); return }
+                  if (atOrgLimit) { setMessage(`현재 플랜(${PLAN_LABELS[plan]})의 최대 조직 수(${limits.maxOrgs}개)에 도달했습니다.`); return }
+                  setShowCreate(v => !v)
+                }}
+                disabled={atOrgLimit || isDeletionPending}
+                title={isDeletionPending ? '탈퇴 요청 중입니다' : atOrgLimit ? `플랜 한도 초과 (최대 ${limits.maxOrgs}개)` : '새 조직 추가'}
+                className="ml-auto inline-flex items-center justify-center gap-[6px] h-[36px] px-[16px] rounded-[11px] text-[13px] font-bold whitespace-nowrap text-white transition-colors hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ background: 'var(--color-brand-primary)' }}
+              >
+                + 새 조직
+              </button>
+            </div>
+
+            {/* ── Create form ── */}
+            {showCreate && (
+              <form onSubmit={createTenant} className="mb-6 p-5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] space-y-4">
+                <h3 className="font-semibold text-[var(--color-text-primary)]">새 조직 만들기</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {([
+                    { key: 'slug',        label: 'Slug (소문자+하이픈)', placeholder: 'my-org',    required: true  },
+                    { key: 'name',        label: '조직명',               placeholder: '홍길동 미용실', required: true  },
+                    { key: 'title',       label: '페이지 타이틀 (선택)',  placeholder: '스케줄'                    },
+                    { key: 'theme_color', label: '테마 색상 (선택)',      placeholder: '#2563eb'                   },
+                  ] as { key: keyof CreateForm; label: string; placeholder: string; required?: boolean }[]).map(f => (
+                    <div key={f.key}>
+                      <label className="block text-xs text-[var(--color-text-secondary)] mb-1">{f.label}</label>
+                      <input
+                        type="text"
+                        placeholder={f.placeholder}
+                        required={f.required}
+                        value={form[f.key]}
+                        onChange={e => setForm(prev => ({ ...prev, [f.key]: e.target.value }))}
+                        className={inputCls}
+                      />
+                    </div>
+                  ))}
+                  <div className="sm:col-span-2">
+                    <IndustryPicker
+                      value={form.business_type}
+                      onChange={v => setForm(prev => ({ ...prev, business_type: v }))}
+                      inputCls={inputCls}
                     />
-                    <span className="text-sm text-[var(--color-text-secondary)]">{mode}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <SlotEditor slots={createSlots} onChange={setCreateSlots} />
-
-            <div className="flex gap-2 pt-1">
-              <button type="submit" disabled={saving || !form.slug || !form.name}
-                className="px-4 py-2 rounded-xl bg-[var(--color-brand-primary)] text-white text-sm font-medium hover:opacity-90 disabled:opacity-40">
-                {saving ? '저장 중...' : '생성'}
-              </button>
-              <button type="button" onClick={() => setShowCreate(false)}
-                className="px-4 py-2 rounded-xl border border-[var(--color-border)] text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]">
-                취소
-              </button>
-            </div>
-          </form>
-        )}
-
-        {/* Org cards */}
-        <ul className="flex flex-col gap-3">
-          {tenants.length === 0 && !showCreate && (
-            <li className="text-center py-12 text-[var(--color-text-secondary)] text-sm">
-              조직이 없습니다. "+ 새 조직" 버튼으로 첫 조직을 만들어보세요.
-            </li>
-          )}
-          {tenants.map(t => (
-            <li
-              key={t.id}
-              className={`flex flex-col sm:flex-row sm:items-center gap-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[22px] shadow-[var(--shadow-sm)] transition-all hover:-translate-y-px hover:shadow-[var(--shadow-md)] hover:border-[var(--color-border-strong)] ${t.is_active === false ? 'opacity-60' : ''}`}
-              style={{ padding: '16px clamp(16px,3vw,22px)' }}
-            >
-              <div className="flex-1 min-w-0">
-                <div className="flex items-baseline gap-2 flex-wrap">
-                  <span className="text-[16px] font-bold tracking-[-0.4px]">{t.name}</span>
-                  <span className="text-[12px] font-mono text-[var(--color-text-muted)]">{t.slug}</span>
-                  {t.is_active === false && (
-                    <span className="text-[11px] font-semibold px-[7px] py-[2px] rounded-md bg-amber-100 text-amber-700">비활성</span>
-                  )}
+                  </div>
                 </div>
-                {t.business_type && (
-                  <span className="mt-1 inline-block text-[12px] text-[var(--color-text-muted)]">{t.business_type}</span>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => { setTenant(t, 'admin'); navigate('/schedule') }}
-                  disabled={isDeletionPending || t.is_active === false}
-                  className="flex-1 sm:flex-none inline-flex items-center justify-center h-[38px] px-4 rounded-[9px] text-[13px] font-semibold border border-[var(--color-border-strong)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-secondary)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  스케줄
-                </button>
-                <button
-                  onClick={() => { setTenant(t, 'admin'); navigate('/admin') }}
-                  disabled={isDeletionPending || t.is_active === false}
-                  className="flex-1 sm:flex-none inline-flex items-center justify-center h-[38px] px-4 rounded-[9px] text-[13px] font-semibold text-white hover:opacity-90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                  style={{ background: 'var(--color-brand-primary)' }}
-                >
-                  관리
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
+
+                <div>
+                  <label className="block text-xs text-[var(--color-text-secondary)] mb-2">운영 모드</label>
+                  <div className="flex gap-3">
+                    {(['회원공유', '회원개별', '비회원'] as const).map(mode => (
+                      <label key={mode} className="flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="tenant_mode_ca"
+                          value={mode}
+                          checked={form.tenant_mode === mode}
+                          onChange={() => setForm(prev => ({ ...prev, tenant_mode: mode }))}
+                          className="accent-[var(--color-brand-primary)]"
+                        />
+                        <span className="text-sm text-[var(--color-text-secondary)]">{mode}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <SlotEditor slots={createSlots} onChange={setCreateSlots} />
+
+                <div className="flex gap-2 pt-1">
+                  <button type="submit" disabled={saving || !form.slug || !form.name}
+                    className="px-4 py-2 rounded-xl bg-[var(--color-brand-primary)] text-white text-sm font-medium hover:opacity-90 disabled:opacity-40">
+                    {saving ? '저장 중...' : '생성'}
+                  </button>
+                  <button type="button" onClick={() => setShowCreate(false)}
+                    className="px-4 py-2 rounded-xl border border-[var(--color-border)] text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]">
+                    취소
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* ── Org views ── */}
+            {view === 'tree' && (
+              <OrgTreeView tenants={tenants} memberCounts={memberCounts} pendingCounts={pendingCounts} selectedOrgId={selectedTenantId} onSelect={handleSelectOrg} />
+            )}
+            {view === 'diagram' && (
+              <OrgDiagramView customerName={myCustomer.name} tenants={tenants} memberCounts={memberCounts} pendingCounts={pendingCounts} selectedOrgId={selectedTenantId} onSelect={handleSelectOrg} />
+            )}
+            {view === 'cards' && (
+              <OrgCardsView tenants={tenants} memberCounts={memberCounts} pendingCounts={pendingCounts} selectedOrgId={selectedTenantId} onSelect={handleSelectOrg} />
+            )}
+          </div>
+
+          {/* ── Org drawer ── */}
+          {selectedTenant && (
+            <div className="hub-drawer-backdrop is-open" onClick={() => setSelectedTenantId(null)} />
+          )}
+          {selectedTenant && (() => {
+            const { bg, fg } = colorOf(selectedTenant.name)
+            const orgDisabled = isDeletionPending || selectedTenant.is_active === false
+            return (
+              <aside className="hub-drawer is-open">
+                <div className="flex items-start gap-3 mb-4">
+                  <span className="hub-avatar is-lg" style={{ background: bg, color: fg }}>{initialsOf(selectedTenant.name)}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[16px] font-extrabold tracking-[-0.3px] text-[var(--color-text-primary)] truncate m-0">{selectedTenant.name}</p>
+                    <p className="text-[12px] font-medium font-mono text-[var(--color-text-muted)] mt-0.5 m-0">{selectedTenant.slug}</p>
+                    {selectedTenant.business_type && <p className="text-[11.5px] text-[var(--color-text-muted)] mt-1 m-0">{selectedTenant.business_type}</p>}
+                    {selectedTenant.is_active === false && <span className="hub-badge hub-badge-danger mt-1 inline-block">비활성</span>}
+                  </div>
+                  <button onClick={() => setSelectedTenantId(null)} className="flex-shrink-0 w-7 h-7 rounded-lg grid place-items-center text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)]" title="닫기">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => { setTenant(selectedTenant, 'admin'); navigate('/schedule') }}
+                    disabled={orgDisabled}
+                    className="inline-flex items-center justify-center h-[36px] px-3 rounded-[9px] text-[12.5px] font-semibold border border-[var(--color-border-strong)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] shadow-[var(--shadow-xs)] hover:bg-[var(--color-surface-secondary)] hover:text-[var(--color-text-primary)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    스케줄
+                  </button>
+                  <button
+                    onClick={() => { setTenant(selectedTenant, 'admin'); navigate('/admin') }}
+                    disabled={orgDisabled}
+                    className="inline-flex items-center justify-center h-[36px] px-3 rounded-[9px] text-[12.5px] font-semibold text-white transition-colors hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                    style={{ background: 'var(--color-brand-primary)' }}
+                  >
+                    관리
+                  </button>
+                </div>
+              </aside>
+            )
+          })()}
+        </div>
 
       </div>
     </div>

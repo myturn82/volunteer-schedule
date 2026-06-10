@@ -68,7 +68,15 @@ export const PLAN_LABELS: Record<PlanType, string> = {
   business: 'Business (월 29,000원)',
 }
 
-export const PLAN_LIMITS: Record<PlanType, { maxOrgs: number; maxUsers: number }> = {
+export interface PlanLimits {
+  maxOrgs: number
+  maxUsers: number
+}
+
+export type PlanLimitsMap = Record<PlanType, PlanLimits>
+
+// Fallback defaults, used until plan_limits table loads (or if a row is missing).
+export const PLAN_LIMITS: PlanLimitsMap = {
   basic:    { maxOrgs: 1,        maxUsers: 20  },
   pro:      { maxOrgs: 5,        maxUsers: 100 },
   business: { maxOrgs: Infinity, maxUsers: Infinity },
