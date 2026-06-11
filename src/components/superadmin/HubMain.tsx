@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { Customer, PlanType, Tenant } from '../../types'
 import { colorOf, initialsOf } from '../../lib/avatarColor'
 import { SlotEditor } from '../shared/SlotEditor'
@@ -36,6 +36,16 @@ const THEME_COLORS = [
 
 const SYSTEM_CUSTOMER_ID = '00000000-0000-0000-0000-000000000001'
 
+const Ic = {
+  org:     (s = 15) => <svg viewBox="0 0 24 24" width={s} height={s} fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="3" width="8" height="5" rx="1.2"/><rect x="3" y="16" width="6" height="5" rx="1.2"/><rect x="15" y="16" width="6" height="5" rx="1.2"/><path d="M12 8v4M6 16v-2h12v2"/></svg>,
+  members: (s = 15) => <svg viewBox="0 0 24 24" width={s} height={s} fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="3.2"/><path d="M5.5 20c0-3.2 2.9-5.2 6.5-5.2s6.5 2 6.5 5.2"/></svg>,
+  slot:    (s = 14) => <svg viewBox="0 0 24 24" width={s} height={s} fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="17" rx="2.5"/><path d="M3 9h18M8 2.5v4M16 2.5v4"/></svg>,
+  pending: (s = 14) => <svg viewBox="0 0 24 24" width={s} height={s} fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>,
+  tree:    (s = 15) => <svg viewBox="0 0 20 20" width={s} height={s} fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="7.5" y="2.5" width="5" height="4" rx="1"/><rect x="2.5" y="13" width="5" height="4" rx="1"/><rect x="12.5" y="13" width="5" height="4" rx="1"/><path d="M10 6.5V10M5 13v-3h10v3"/></svg>,
+  diagram: (s = 15) => <svg viewBox="0 0 20 20" width={s} height={s} fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="4" cy="10" r="2.3"/><circle cx="15" cy="5" r="2.1"/><circle cx="15" cy="15" r="2.1"/><path d="M6.2 9 13 5.7M6.2 11 13 14.3"/></svg>,
+  cards:   (s = 15) => <svg viewBox="0 0 20 20" width={s} height={s} fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="2.5" y="3" width="15" height="6" rx="1.5"/><rect x="2.5" y="11.5" width="15" height="6" rx="1.5"/></svg>,
+}
+
 export type HubView = 'tree' | 'diagram' | 'cards'
 
 interface Props {
@@ -50,19 +60,10 @@ interface Props {
   onOpenRail: () => void
 
   ownerEmails: Record<string, string>
-  editingOwnerCustomerId: string | null
-  setEditingOwnerCustomerId: (id: string | null) => void
-  editOwnerEmail: string
-  setEditOwnerEmail: (v: string) => void
-  ownerSaving: boolean
-  saveOwner: (customerId: string) => void
-
-  editingPhoneCustomerId: string | null
-  setEditingPhoneCustomerId: (id: string | null) => void
-  editPhone: string
-  setEditPhone: (v: string) => void
   phoneSaving: boolean
-  savePhone: (customerId: string) => void
+  ownerSaving: boolean
+  savePhone: (customerId: string, phone: string) => Promise<void>
+  saveOwner: (customerId: string, email: string) => Promise<void>
 
   updateCustomerPlan: (customerId: string, plan: PlanType) => void
   toggleCustomerActive: (customer: Customer) => void
@@ -83,12 +84,49 @@ interface Props {
 
 export function HubMain({
   customer, tenants, memberCounts, pendingCounts, view, setView, selectedOrgId, onSelectOrg, onOpenRail,
-  ownerEmails, editingOwnerCustomerId, setEditingOwnerCustomerId, editOwnerEmail, setEditOwnerEmail, ownerSaving, saveOwner,
-  editingPhoneCustomerId, setEditingPhoneCustomerId, editPhone, setEditPhone, phoneSaving, savePhone,
+  ownerEmails, phoneSaving, ownerSaving, savePhone, saveOwner,
   updateCustomerPlan, toggleCustomerActive, startDeleteCustomer, restoreCustomer, restoringId, onHardDelete,
   showCreate, setShowCreate, form, setForm, createSlots, setCreateSlots, saving, onCreateTenant,
 }: Props) {
   const [colorOpen, setColorOpen] = useState(false)
+
+  const currentOwnerEmail = customer.owner_user_id ? (ownerEmails[customer.owner_user_id] ?? '') : ''
+  const [localPlan, setLocalPlan] = useState<PlanType>(customer.plan)
+  const [localPhone, setLocalPhone] = useState(formatPhone(customer.phone ?? ''))
+  const [localOwnerEmail, setLocalOwnerEmail] = useState(currentOwnerEmail)
+  const [fieldSaving, setFieldSaving] = useState(false)
+
+  useEffect(() => {
+    setLocalPlan(customer.plan)
+    setLocalPhone(formatPhone(customer.phone ?? ''))
+    setLocalOwnerEmail(customer.owner_user_id ? (ownerEmails[customer.owner_user_id] ?? '') : '')
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customer.id])
+
+  useEffect(() => {
+    const email = customer.owner_user_id ? (ownerEmails[customer.owner_user_id] ?? '') : ''
+    if (email) setLocalOwnerEmail(prev => prev || email)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ownerEmails, customer.owner_user_id])
+
+  const isPlanDirty = localPlan !== customer.plan
+  const isPhoneDirty = localPhone !== formatPhone(customer.phone ?? '')
+  const isOwnerDirty = localOwnerEmail !== currentOwnerEmail
+  const isDirty = isPlanDirty || isPhoneDirty || isOwnerDirty
+
+  async function handleSaveAll() {
+    setFieldSaving(true)
+    if (isPlanDirty) updateCustomerPlan(customer.id, localPlan)
+    if (isPhoneDirty) await savePhone(customer.id, localPhone)
+    if (isOwnerDirty) await saveOwner(customer.id, localOwnerEmail)
+    setFieldSaving(false)
+  }
+
+  function handleCancel() {
+    setLocalPlan(customer.plan)
+    setLocalPhone(formatPhone(customer.phone ?? ''))
+    setLocalOwnerEmail(currentOwnerEmail)
+  }
 
   const isSystem = customer.id === SYSTEM_CUSTOMER_ID
   const { bg, fg } = colorOf(customer.name)
@@ -127,91 +165,8 @@ export function HubMain({
               {isSystem && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--color-surface-secondary)] text-[var(--color-text-muted)]">시스템</span>}
               {customer.is_active === false && <span className="hub-badge hub-badge-danger">비활성</span>}
             </h1>
-            <div className="flex flex-col gap-1.5 mt-2 text-xs">
-              <div>
-                <p className="text-[10px] font-semibold text-[var(--color-text-muted)] mb-0.5">요금제</p>
-                <select
-                  value={customer.plan}
-                  onChange={e => updateCustomerPlan(customer.id, e.target.value as PlanType)}
-                  className="w-full px-2 py-1 rounded-lg border border-[var(--color-border-strong)] bg-[var(--color-surface)] text-xs font-semibold text-[var(--color-text-secondary)] focus:outline-none"
-                >
-                  <option value="basic">Basic</option>
-                  <option value="pro">Pro</option>
-                  <option value="business">Business</option>
-                </select>
-              </div>
-
-              <div>
-                <p className="text-[10px] font-semibold text-[var(--color-text-muted)] mb-0.5">가입일</p>
-                <div className="px-2 py-1 rounded-lg bg-[var(--color-surface-secondary)] text-[var(--color-text-muted)]">
-                  {customer.created_at.slice(0, 10)}
-                </div>
-              </div>
-
-              {editingPhoneCustomerId === customer.id ? (
-                <span className="flex items-center gap-1">
-                  <input
-                    value={editPhone}
-                    onChange={e => setEditPhone(formatPhone(e.target.value))}
-                    placeholder="010-1234-5678"
-                    maxLength={13}
-                    className="flex-1 min-w-0 text-xs px-2 py-1 rounded-lg border border-[var(--color-border-strong)] bg-[var(--color-surface)] text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-primary)]/30 focus:border-[var(--color-brand-primary)]"
-                    onKeyDown={e => { if (e.key === 'Enter') savePhone(customer.id); if (e.key === 'Escape') setEditingPhoneCustomerId(null) }}
-                    autoFocus
-                  />
-                  <button onClick={() => savePhone(customer.id)} disabled={phoneSaving}
-                    className="shrink-0 px-1.5 py-1 text-xs bg-[var(--color-brand-primary)] text-white rounded-lg disabled:opacity-40">
-                    {phoneSaving ? '...' : '저장'}
-                  </button>
-                  <button onClick={() => setEditingPhoneCustomerId(null)}
-                    className="shrink-0 px-1.5 py-1 text-xs border border-[var(--color-border-strong)] text-[var(--color-text-secondary)] rounded-lg">취소</button>
-                </span>
-              ) : (
-                <div>
-                  <p className="text-[10px] font-semibold text-[var(--color-text-muted)] mb-0.5">전화번호</p>
-                  <button
-                    onClick={() => {
-                      setEditingPhoneCustomerId(customer.id)
-                      setEditPhone(formatPhone(customer.phone ?? ''))
-                    }}
-                    className="block w-full text-left px-2 py-1 rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] hover:border-[var(--color-brand-primary)]/40 transition-colors"
-                  >
-                    {customer.phone ? formatPhone(customer.phone) : '미입력'}
-                  </button>
-                </div>
-              )}
-
-              {editingOwnerCustomerId === customer.id ? (
-                <span className="flex items-center gap-1">
-                  <input
-                    value={editOwnerEmail}
-                    onChange={e => setEditOwnerEmail(e.target.value)}
-                    placeholder="오너 이메일"
-                    className="flex-1 min-w-0 text-xs px-2 py-1 rounded-lg border border-[var(--color-border-strong)] bg-[var(--color-surface)] text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-primary)]/30 focus:border-[var(--color-brand-primary)]"
-                    onKeyDown={e => { if (e.key === 'Enter') saveOwner(customer.id); if (e.key === 'Escape') setEditingOwnerCustomerId(null) }}
-                    autoFocus
-                  />
-                  <button onClick={() => saveOwner(customer.id)} disabled={ownerSaving}
-                    className="shrink-0 px-1.5 py-1 text-xs bg-[var(--color-brand-primary)] text-white rounded-lg disabled:opacity-40">
-                    {ownerSaving ? '...' : '저장'}
-                  </button>
-                  <button onClick={() => setEditingOwnerCustomerId(null)}
-                    className="shrink-0 px-1.5 py-1 text-xs border border-[var(--color-border-strong)] text-[var(--color-text-secondary)] rounded-lg">취소</button>
-                </span>
-              ) : (
-                <div>
-                  <p className="text-[10px] font-semibold text-[var(--color-text-muted)] mb-0.5">오너</p>
-                  <button
-                    onClick={() => {
-                      setEditingOwnerCustomerId(customer.id)
-                      setEditOwnerEmail(customer.owner_user_id ? (ownerEmails[customer.owner_user_id] ?? '') : '')
-                    }}
-                    className="block w-full text-left px-2 py-1 rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] hover:border-[var(--color-brand-primary)]/40 transition-colors break-all"
-                  >
-                    {customer.owner_user_id ? (ownerEmails[customer.owner_user_id] ?? '...') : '미설정'}
-                  </button>
-                </div>
-              )}
+            <div className="hub-hero-meta">
+              <span>가입 <span style={{ fontFamily: 'var(--font-mono, monospace)' }}>{customer.created_at.slice(0, 10)}</span></span>
             </div>
           </div>
 
@@ -231,6 +186,109 @@ export function HubMain({
               >
                 삭제
               </button>
+            </div>
+          )}
+        </div>
+
+        {/* ── Account info fieldset ── */}
+        <div className="hub-fieldset">
+          <div className="hub-fieldset-head">계정 정보</div>
+          <div className="hub-field-grid">
+
+            {/* 요금제 */}
+            <div className={`hub-field${isPlanDirty ? ' dirty' : ''}`}>
+              <label className="hub-field-lab" htmlFor="hub-plan">요금제</label>
+              <div className="hub-field-control">
+                <select
+                  id="hub-plan"
+                  value={localPlan}
+                  onChange={e => setLocalPlan(e.target.value as PlanType)}
+                >
+                  <option value="basic">Basic</option>
+                  <option value="pro">Pro</option>
+                  <option value="business">Business</option>
+                </select>
+              </div>
+            </div>
+
+            {/* 가입일 — 조회 전용 (데스크톱만, 모바일은 hero-meta로 표시) */}
+            <div className="hub-field hub-field-date">
+              <div className="hub-field-lab">
+                가입일
+                <span className="ro-tag">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" width="10" height="10"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+                  조회 전용
+                </span>
+              </div>
+              <div className="hub-field-ro">
+                <span className="ci">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4.5" width="18" height="16.5" rx="2.5"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/></svg>
+                </span>
+                <span style={{ fontFamily: 'var(--font-mono, monospace)', letterSpacing: '0.01em' }}>{customer.created_at.slice(0, 10)}</span>
+              </div>
+            </div>
+
+            {/* 전화번호 */}
+            <div className={`hub-field${isPhoneDirty ? ' dirty' : ''}`}>
+              <label className="hub-field-lab" htmlFor="hub-phone">전화번호</label>
+              <div className="hub-field-control">
+                <input
+                  id="hub-phone"
+                  type="tel"
+                  inputMode="tel"
+                  value={localPhone}
+                  onChange={e => setLocalPhone(formatPhone(e.target.value))}
+                  placeholder="010-1234-5678"
+                  maxLength={13}
+                />
+                <span className="edit-ic">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                </span>
+              </div>
+            </div>
+
+            {/* 오너 */}
+            <div className={`hub-field${isOwnerDirty ? ' dirty' : ''}`}>
+              <label className="hub-field-lab" htmlFor="hub-owner">오너</label>
+              <div className="hub-field-control">
+                <input
+                  id="hub-owner"
+                  type="email"
+                  inputMode="email"
+                  value={localOwnerEmail}
+                  onChange={e => setLocalOwnerEmail(e.target.value)}
+                  placeholder="owner@example.com"
+                />
+                <span className="edit-ic">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                </span>
+              </div>
+            </div>
+
+          </div>
+
+          {isDirty && (
+            <div className="hub-save-bar">
+              <span className="msg">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 9v4M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>
+                변경한 항목이 있어요.
+              </span>
+              <div className="acts">
+                <button
+                  onClick={handleCancel}
+                  disabled={fieldSaving || phoneSaving || ownerSaving}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-[var(--color-border-strong)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] disabled:opacity-40 transition-colors"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={handleSaveAll}
+                  disabled={fieldSaving || phoneSaving || ownerSaving}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--color-brand-primary)] text-white hover:opacity-90 disabled:opacity-40 transition-colors"
+                >
+                  {fieldSaving || phoneSaving || ownerSaving ? '저장 중...' : '변경사항 저장'}
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -263,19 +321,19 @@ export function HubMain({
         <div className="hub-stats">
           <div className="hub-stat">
             <div className="hub-stat-value">{tenants.length}</div>
-            <div className="hub-stat-label">조직</div>
+            <div className="hub-stat-label">{Ic.org(13)} 조직</div>
           </div>
           <div className="hub-stat">
             <div className="hub-stat-value">{totalMembers}</div>
-            <div className="hub-stat-label">활성 멤버</div>
+            <div className="hub-stat-label">{Ic.members(13)} 전체 멤버</div>
           </div>
           <div className="hub-stat">
             <div className="hub-stat-value">{totalSlots}</div>
-            <div className="hub-stat-label">슬롯 합계</div>
+            <div className="hub-stat-label">{Ic.slot(13)} 슬롯 합계</div>
           </div>
           <div className="hub-stat">
             <div className="hub-stat-value">{totalPending}</div>
-            <div className="hub-stat-label">승인 대기</div>
+            <div className="hub-stat-label">{Ic.pending(13)} 승인 대기</div>
           </div>
         </div>
       </div>
@@ -283,9 +341,9 @@ export function HubMain({
       {/* ── View switcher + create ── */}
       <div className="flex items-center gap-3 flex-wrap mb-3">
         <div className="hub-view-switch">
-          <button onClick={() => setView('tree')} className={`hub-view-btn ${view === 'tree' ? 'is-active' : ''}`}>트리</button>
-          <button onClick={() => setView('diagram')} className={`hub-view-btn ${view === 'diagram' ? 'is-active' : ''}`}>다이어그램</button>
-          <button onClick={() => setView('cards')} className={`hub-view-btn ${view === 'cards' ? 'is-active' : ''}`}>카드</button>
+          <button onClick={() => setView('tree')} className={`hub-view-btn ${view === 'tree' ? 'is-active' : ''}`}>{Ic.tree(15)} 트리</button>
+          <button onClick={() => setView('diagram')} className={`hub-view-btn ${view === 'diagram' ? 'is-active' : ''}`}>{Ic.diagram(15)} 다이어그램</button>
+          <button onClick={() => setView('cards')} className={`hub-view-btn ${view === 'cards' ? 'is-active' : ''}`}>{Ic.cards(15)} 카드</button>
         </div>
         <button
           onClick={() => setShowCreate(!showCreate)}

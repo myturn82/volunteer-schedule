@@ -772,22 +772,22 @@ export function AdminPage() {
                   </form>
                 )}
 
-                <div className="bg-[var(--color-surface)] rounded-xl shadow overflow-x-auto">
+                <div className="bg-[var(--color-surface)] rounded-xl shadow">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="bg-[var(--color-surface-secondary)] border-b border-[var(--color-border)]">
-                        <th className="text-center px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)]">이름</th>
-                        <th className="text-center px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] hidden sm:table-cell">이메일</th>
-                        <th className="text-center px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)]">역할</th>
-                        <th className="text-center px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)]">접근권한</th>
-                        <th className="text-center px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)]">자동배정 · 삭제</th>
+                        <th className="text-center px-2 py-2 sm:px-4 sm:py-3 text-xs font-semibold text-[var(--color-text-muted)]">이름</th>
+                        <th className="text-center px-2 py-2 sm:px-4 sm:py-3 text-xs font-semibold text-[var(--color-text-muted)] hidden sm:table-cell">이메일</th>
+                        <th className="text-center px-2 py-2 sm:px-4 sm:py-3 text-xs font-semibold text-[var(--color-text-muted)]">역할</th>
+                        <th className="text-center px-2 py-2 sm:px-4 sm:py-3 text-xs font-semibold text-[var(--color-text-muted)]">권한</th>
+                        <th className="text-center px-2 py-2 sm:px-4 sm:py-3 text-xs font-semibold text-[var(--color-text-muted)]">관리</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--color-border)]">
                       {members.filter(m => m.is_approved).map(m => (
                         <Fragment key={m.user_id}>
                           <tr className="hover:bg-[var(--color-surface-hover)]">
-                            <td className="px-4 py-3 font-medium text-[var(--color-text-primary)] text-center">
+                            <td className="px-2 py-2 sm:px-4 sm:py-3 font-medium text-[var(--color-text-primary)] text-center">
                               {editingNameUserId === m.user_id ? (
                                 <span className="flex items-center justify-center gap-1">
                                   <input
@@ -815,8 +815,8 @@ export function AdminPage() {
                               )}
                               {m.user_id === profile.id && <span className="ml-1.5 text-xs text-[var(--color-text-muted)]">(나)</span>}
                             </td>
-                            <td className="px-4 py-3 text-[var(--color-text-muted)] hidden sm:table-cell text-xs text-center">{m.profile?.email ?? '-'}</td>
-                            <td className="px-4 py-3 text-center">
+                            <td className="px-2 py-2 sm:px-4 sm:py-3 text-[var(--color-text-muted)] hidden sm:table-cell text-xs text-center">{m.profile?.email ?? '-'}</td>
+                            <td className="px-2 py-2 sm:px-4 sm:py-3 text-center">
                               <select
                                 value={m.role_id ?? ''}
                                 onChange={async e => {
@@ -829,7 +829,7 @@ export function AdminPage() {
                                 {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                               </select>
                             </td>
-                            <td className="px-4 py-3 text-center">
+                            <td className="px-2 py-2 sm:px-4 sm:py-3 text-center">
                               {m.user_id !== profile.id ? (
                                 <select
                                   value={m.role}
@@ -846,8 +846,8 @@ export function AdminPage() {
                                 <span className="text-xs text-[var(--color-text-muted)]">{m.role === 'admin' ? '관리자' : '멤버'}</span>
                               )}
                             </td>
-                            <td className="px-4 py-3">
-                              <div className="flex gap-1.5 items-center justify-center">
+                            <td className="px-2 py-2 sm:px-4 sm:py-3">
+                              <div className="flex flex-wrap gap-1 items-center justify-center">
                                 {/* 자동배정 설정 버튼 */}
                                 <button
                                   onClick={() => {
@@ -859,7 +859,7 @@ export function AdminPage() {
                                     setPrefDays(m.available_days ?? [])
                                     setPrefLimit(m.monthly_limit?.toString() ?? '')
                                   }}
-                                  className="px-2 py-1 text-[10px] border border-[var(--color-border)] rounded-lg text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] whitespace-nowrap"
+                                  className="px-2 py-1 text-[10px] border border-[var(--color-border)] rounded-lg text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)]"
                                 >
                                   자동배정
                                 </button>
@@ -870,7 +870,7 @@ export function AdminPage() {
                                       const err = await removeMember(m.user_id)
                                       if (err) msg(err, true)
                                     }}
-                                    className="px-2 py-1 text-[10px] text-red-600 border border-red-200 rounded-lg hover:bg-red-50 whitespace-nowrap"
+                                    className="px-2 py-1 text-[10px] text-red-600 border border-red-200 rounded-lg hover:bg-red-50"
                                   >
                                     삭제
                                   </button>
@@ -964,7 +964,7 @@ export function AdminPage() {
                               <td className="px-4 py-3 font-medium text-[var(--color-text-primary)]">{m.profile?.name ?? '-'}</td>
                               <td className="px-4 py-3 text-[var(--color-text-muted)] hidden sm:table-cell text-xs">{m.profile?.email ?? '-'}</td>
                               <td className="px-4 py-3 text-xs text-[var(--color-text-secondary)]">{m.tenant_role?.name ?? '-'}</td>
-                              <td className="px-4 py-3">
+                              <td className="px-2 py-2 sm:px-4 sm:py-3">
                                 <div className="flex gap-2">
                                   <button
                                     onClick={async () => {
@@ -1043,23 +1043,23 @@ export function AdminPage() {
             {tab === 'roles' && (
               <div className="max-w-lg">
                 <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-wider font-semibold mb-3">역할 목록</p>
-                <div className="bg-[var(--color-surface)] rounded-xl shadow overflow-x-auto mb-4">
+                <div className="bg-[var(--color-surface)] rounded-xl shadow mb-4">
                   {roles.length === 0 ? (
                     <p className="text-sm text-[var(--color-text-muted)] px-4 py-6 text-center">등록된 역할이 없습니다.</p>
                   ) : (
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="bg-[var(--color-surface-secondary)] border-b border-[var(--color-border)]">
-                          <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)]">역할명</th>
-                          <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)]">셀 분리</th>
-                          <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)]">바표시</th>
-                          <th className="px-4 py-3"></th>
+                          <th className="text-left px-2 py-2 sm:px-4 sm:py-3 text-xs font-semibold text-[var(--color-text-muted)]">역할명</th>
+                          <th className="text-left px-2 py-2 sm:px-4 sm:py-3 text-xs font-semibold text-[var(--color-text-muted)]">셀분리</th>
+                          <th className="text-left px-2 py-2 sm:px-4 sm:py-3 text-xs font-semibold text-[var(--color-text-muted)]">바표시</th>
+                          <th className="px-2 py-2 sm:px-4 sm:py-3"></th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[var(--color-border)]">
                         {[...roles].sort((a, b) => a.display_order - b.display_order).map((r, idx, sortedRoles) => (
                           <tr key={r.id} className="hover:bg-[var(--color-surface-hover)]">
-                            <td className="px-4 py-3">
+                            <td className="px-2 py-2 sm:px-4 sm:py-3">
                               {editingRoleId === r.id ? (
                                 <div className="flex items-center gap-1.5">
                                   <input
@@ -1100,7 +1100,7 @@ export function AdminPage() {
                                 </button>
                               )}
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="px-2 py-2 sm:px-4 sm:py-3">
                               <button
                                 onClick={async () => {
                                   const err = await updateRole(r.id, { split_cell: !r.split_cell })
@@ -1114,7 +1114,7 @@ export function AdminPage() {
                                 {r.split_cell ? '분리' : '미분리'}
                               </button>
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="px-2 py-2 sm:px-4 sm:py-3">
                               <button
                                 onClick={async () => {
                                   const err = await updateRole(r.id, { indicator_bar: !r.indicator_bar })
@@ -1129,7 +1129,7 @@ export function AdminPage() {
                                 {r.indicator_bar ? '바 표시' : '바 없음'}
                               </button>
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="px-2 py-2 sm:px-4 sm:py-3">
                               <div className="flex gap-1 items-center">
                                 <button type="button" onClick={() => moveRole(r.id, -1)} disabled={idx === 0}
                                   className="px-1.5 py-1 text-xs border border-[var(--color-border)] rounded hover:bg-[var(--color-surface-hover)] disabled:opacity-30">↑</button>
@@ -1292,13 +1292,13 @@ export function AdminPage() {
                           {dateOverrides.map(d => (
                             <tr key={d.id} className="hover:bg-[var(--color-surface-hover)]">
                               <td className="px-4 py-3 font-medium text-[var(--color-text-primary)]">{d.date}</td>
-                              <td className="px-4 py-3">
+                              <td className="px-2 py-2 sm:px-4 sm:py-3">
                                 <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${d.is_holiday ? 'bg-red-100 text-red-700' : 'bg-[var(--color-brand-primary)]/10 text-[var(--color-brand-primary)]'}`}>
                                   {d.is_holiday ? '휴관일' : '특별운영'}
                                 </span>
                               </td>
                               <td className="px-4 py-3 text-[var(--color-text-muted)]">{d.label ?? '-'}</td>
-                              <td className="px-4 py-3">
+                              <td className="px-2 py-2 sm:px-4 sm:py-3">
                                 <button onClick={async () => { const err = await deleteDateOverride(d.id); if (err) msg(err, true) }}
                                   className="px-2.5 py-1 text-xs text-red-600 border border-red-200 rounded hover:bg-red-50">
                                   삭제

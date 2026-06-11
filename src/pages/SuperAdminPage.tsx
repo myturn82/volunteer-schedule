@@ -109,12 +109,12 @@ export function SuperAdminPage() {
     setOwnerEmails(map)
   }
 
-  async function saveOwner(customerId: string) {
+  async function saveOwner(customerId: string, email: string) {
     setOwnerSaving(true)
-    const email = editOwnerEmail.trim()
+    const trimmed = email.trim()
     let ownerUserId: string | null = null
-    if (email) {
-      const { data: prof } = await supabase.from('profiles').select('id, email').eq('email', email).maybeSingle()
+    if (trimmed) {
+      const { data: prof } = await supabase.from('profiles').select('id, email').eq('email', trimmed).maybeSingle()
       if (!prof) { setMessage('오너 설정 오류: 해당 이메일의 가입 유저를 찾을 수 없습니다.'); setOwnerSaving(false); return }
       ownerUserId = prof.id
     }
@@ -127,19 +127,18 @@ export function SuperAdminPage() {
     if (error) { setMessage(`오류: ${error.message}`); setOwnerSaving(false); return }
     if (data) {
       setCustomers(prev => prev.map(c => c.id === customerId ? data as Customer : c))
-      if (ownerUserId) setOwnerEmails(prev => ({ ...prev, [ownerUserId!]: email }))
+      if (ownerUserId) setOwnerEmails(prev => ({ ...prev, [ownerUserId!]: trimmed }))
       setMessage(ownerUserId ? '오너가 설정됐습니다.' : '오너가 해제됐습니다.')
     }
-    setEditingOwnerCustomerId(null)
     setOwnerSaving(false)
   }
 
-  async function savePhone(customerId: string) {
-    if (!isValidPhone(editPhone)) { setMessage('오류: 올바른 전화번호를 입력해 주세요. (예: 010-1234-5678)'); return }
+  async function savePhone(customerId: string, phone: string) {
+    if (!isValidPhone(phone)) { setMessage('오류: 올바른 전화번호를 입력해 주세요. (예: 010-1234-5678)'); return }
     setPhoneSaving(true)
     const { data, error } = await supabase
       .from('customers')
-      .update({ phone: editPhone.trim(), updated_at: new Date().toISOString() })
+      .update({ phone: phone.trim(), updated_at: new Date().toISOString() })
       .eq('id', customerId)
       .select()
       .single()
@@ -148,7 +147,6 @@ export function SuperAdminPage() {
       setCustomers(prev => prev.map(c => c.id === customerId ? data as Customer : c))
       setMessage('전화번호가 수정됐습니다.')
     }
-    setEditingPhoneCustomerId(null)
     setPhoneSaving(false)
   }
 
@@ -603,8 +601,8 @@ export function SuperAdminPage() {
         {/* ── Topbar ── */}
         <div className="flex items-center gap-[14px] mb-[clamp(18px,3vw,26px)]">
           <h1 className="m-0 text-[clamp(22px,5vw,28px)] font-extrabold tracking-[-0.8px] flex items-center gap-[10px] whitespace-nowrap">
-            <span className="w-[30px] h-[30px] rounded-[9px] flex-shrink-0 grid place-items-center" style={{ background: 'oklch(0.95 0.045 28)', color: 'oklch(0.45 0.14 28)' }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M3 17l2-9 4.5 5L12 6l2.5 7L19 8l2 9z"/><path d="M3 20h18"/></svg>
+            <span className="w-[32px] h-[32px] rounded-[9px] flex-shrink-0 grid place-items-center" style={{ background: '#14171C', color: '#fff' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M3 17l2-9 4.5 5L12 6l2.5 7L19 8l2 9z"/><path d="M3 20.5h18"/></svg>
             </span>
             슈퍼관리자
           </h1>
@@ -699,18 +697,10 @@ export function SuperAdminPage() {
               onSelectOrg={id => setSelectedTenantId(prev => prev === id ? null : id)}
               onOpenRail={() => setRailOpen(true)}
               ownerEmails={ownerEmails}
-              editingOwnerCustomerId={editingOwnerCustomerId}
-              setEditingOwnerCustomerId={setEditingOwnerCustomerId}
-              editOwnerEmail={editOwnerEmail}
-              setEditOwnerEmail={setEditOwnerEmail}
-              ownerSaving={ownerSaving}
-              saveOwner={saveOwner}
-              editingPhoneCustomerId={editingPhoneCustomerId}
-              setEditingPhoneCustomerId={setEditingPhoneCustomerId}
-              editPhone={editPhone}
-              setEditPhone={setEditPhone}
               phoneSaving={phoneSaving}
+              ownerSaving={ownerSaving}
               savePhone={savePhone}
+              saveOwner={saveOwner}
               updateCustomerPlan={updateCustomerPlan}
               toggleCustomerActive={toggleCustomerActive}
               startDeleteCustomer={startDeleteCustomer}
