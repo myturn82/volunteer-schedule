@@ -111,3 +111,9 @@ npm run dev
   주간 뷰처럼 인접 월의 데이터를 함께 보여주는 화면에서는 해당 월의 `dateOverrides`/`assignments`가
   올바르게 병합되어 전달되는지도 확인한다.
 - 작업 완료 후 점검 체크리스트(`docs/checklist_YYYY-MM-DD.md`)에도 월/주/일 뷰 각각에 대한 확인 항목을 포함한다.
+
+## 타입 체크 명령어
+
+루트에서 실행하는 `npx tsc --noEmit`은 루트 `tsconfig.json`(`files: []`, project reference만 있음) 기준으로 동작해
+실제로는 아무 파일도 검사하지 않고 항상 통과한다. **타입 체크는 반드시 `npx tsc -b`
+(또는 `npm run build`)로 확인**한다. 실제 빌드(`tsc -b && vite build`)와 동일한 결과를 보장한다.
