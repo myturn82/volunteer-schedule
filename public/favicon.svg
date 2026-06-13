@@ -1,27 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- Paper background -->
-  <rect width="512" height="512" rx="116" fill="#F4F1EA"/>
-  <!-- Subtle border -->
-  <rect width="512" height="512" rx="116" fill="none" stroke="rgba(20,23,28,0.10)" stroke-width="4"/>
-  <!-- Inner highlight -->
-  <rect x="2" y="2" width="508" height="254" rx="114" fill="rgba(255,255,255,0.40)"/>
-  <!-- DTS text — ink -->
+  <rect width="512" height="512" rx="116" fill="#E05A3A"/>
+  <rect x="0" y="0" width="512" height="4" rx="2" fill="rgba(255,255,255,0.5)"/>
   <text
-    x="256" y="298"
+    x="180" y="308"
     text-anchor="middle"
-    font-family="'Pretendard Variable', Pretendard, -apple-system, 'Helvetica Neue', sans-serif"
-    font-size="196"
+    font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif"
+    font-size="170"
     font-weight="800"
-    letter-spacing="-8"
-    fill="#14171C"
+    letter-spacing="-6"
+    fill="#ffffff"
   >DTS</text>
-  <!-- Coral dot -->
   <text
-    x="420" y="298"
+    x="382" y="308"
     text-anchor="middle"
-    font-family="'Pretendard Variable', Pretendard, -apple-system, 'Helvetica Neue', sans-serif"
-    font-size="196"
+    font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif"
+    font-size="170"
     font-weight="800"
-    fill="#E05A3A"
+    fill="rgba(255,255,255,0.6)"
   >.</text>
 </svg>
