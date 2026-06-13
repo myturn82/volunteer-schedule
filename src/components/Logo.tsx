@@ -113,7 +113,6 @@ export function LogoIcon({ size = 32, className }: IconProps) {
         height: size,
         borderRadius: r,
         background: ACCENT,
-        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.5)',
         display: 'grid',
         placeItems: 'center',
         flexShrink: 0,
