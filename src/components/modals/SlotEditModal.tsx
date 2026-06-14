@@ -626,7 +626,7 @@ export function SlotEditModal({
                         : 'border-[var(--color-border-strong)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)]'
                     }`}
                   >
-                    {isHighlighted ? '🔔 하이라이트 해제' : '🔔 빈 슬롯 알림'}
+                    {isHighlighted ? '📌 하이라이트 해제' : '📌 빈 슬롯 알림'}
                   </button>
                 )}
                 <button

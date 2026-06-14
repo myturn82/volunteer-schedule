@@ -296,7 +296,7 @@ export function WeekGrid({
                       <span className="absolute left-0 top-0 bottom-0 w-[3px]" style={{ background: INDICATOR_BAR_COLOR }} />
                     )}
                     {isHighlighted && !cs.isLocked && (
-                      <span className="text-sm leading-none select-none">🔔</span>
+                      <span className="text-sm leading-none select-none">📌</span>
                     )}
                     {visibleAssigns.length > 0 ? (
                       visibleAssigns.map(a => {

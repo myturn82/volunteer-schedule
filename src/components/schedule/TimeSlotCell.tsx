@@ -249,7 +249,7 @@ export function TimeSlotCell({ cellState, timeSlot, colType, onClick, highlightN
               {isFull && <span className="text-[7px] sm:text-[9px] font-semibold mt-0.5 px-1.5 py-0.5 rounded-full" style={{ background: 'oklch(0.97 0.02 25)', color: 'oklch(0.55 0.16 25)' }}>마감</span>}
             </>
           : highlighted && !isLocked
-            ? <span className="text-sm leading-none select-none">🔔</span>
+            ? <span className="text-sm leading-none select-none">📌</span>
             : canInteract && <EmptyOrLockHint isLocked={isLocked} />
         }
       </button>
@@ -353,7 +353,7 @@ export function TimeSlotCell({ cellState, timeSlot, colType, onClick, highlightN
               {isFull && <span className="text-[7px] sm:text-[9px] font-semibold mt-0.5 px-1.5 py-0.5 rounded-full" style={{ background: 'oklch(0.97 0.02 25)', color: 'oklch(0.55 0.16 25)' }}>마감</span>}
             </>
           : highlighted && !isLocked
-            ? <span className="text-sm leading-none select-none">🔔</span>
+            ? <span className="text-sm leading-none select-none">📌</span>
             : canInteract && <EmptyOrLockHint isLocked={isLocked} />
         }
       </button>
