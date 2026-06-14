@@ -161,6 +161,54 @@ npm run dev
 
 ---
 
+## Supabase Realtime 구독 원칙
+
+실시간 구독을 잘못 설계하면 메시지 수가 폭발해 비용이 급증한다.
+새 테이블에 구독을 추가하거나 기존 구독을 수정할 때 반드시 아래 기준을 따른다.
+
+> 상세 현황: `docs/realtime-subscription-status.md`
+
+### 필수 규칙
+
+1. **언마운트 시 구독 해제** — `useEffect` cleanup에서 반드시 `supabase.removeChannel(channel)` 호출.
+
+2. **tenant_id 필터 필수** — 테이블 전체를 구독하면 다른 조직 이벤트까지 수신해 메시지 비용이 폭발한다.
+   INSERT·UPDATE·DELETE 모두 `filter: \`tenant_id=eq.${tenantId}\`` 를 설정한다.
+
+3. **DELETE 필터를 쓰려면 REPLICA IDENTITY FULL 필수**
+   - DEFAULT replica identity에서 DELETE `payload.old`에는 PK(`id`)만 포함된다.
+   - `tenant_id` 등 비PK 컬럼으로 필터를 걸면 서버가 이벤트 자체를 전달하지 않는다.
+   - DELETE에도 filter를 걸어야 하는 테이블은 반드시 아래 SQL을 마이그레이션에 포함한다:
+     ```sql
+     ALTER TABLE <table_name> REPLICA IDENTITY FULL;
+     ```
+
+4. **새 테이블 추가 시 두 SQL 모두 필요**
+   ```sql
+   ALTER TABLE <table_name> REPLICA IDENTITY FULL;          -- DELETE 필터 지원
+   ALTER PUBLICATION supabase_realtime ADD TABLE <table_name>;
+   ```
+
+5. **고빈도 데이터는 Broadcast 사용** — 1초에 수십 번 변경되는 데이터(커서, 센서 등)는
+   `postgres_changes`(CDC) 대신 Supabase Broadcast를 사용한다. DB 부하와 메시지 비용이 모두 절감된다.
+
+### 구독 패턴 (표준 코드)
+
+```typescript
+useEffect(() => {
+  if (!tenantId) return
+  const channel = supabase
+    .channel(`<table>-${tenantId}`)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: '<table>', filter: `tenant_id=eq.${tenantId}` }, handler)
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: '<table>', filter: `tenant_id=eq.${tenantId}` }, handler)
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: '<table>', filter: `tenant_id=eq.${tenantId}` }, handler)
+    .subscribe()
+  return () => { supabase.removeChannel(channel) }   // ← 언마운트 해제 필수
+}, [tenantId])
+```
+
+---
+
 ## 타입 체크 명령어
 
 루트에서 실행하는 `npx tsc --noEmit`은 루트 `tsconfig.json`(`files: []`, project reference만 있음) 기준으로 동작해
