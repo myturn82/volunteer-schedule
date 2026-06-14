@@ -9,32 +9,10 @@ import { buildSlot, parseSlotLabel, generateTimeSlots, DEFAULT_TIME_SLOTS, SLOT_
 import type { TimeSlot, Tenant, TenantAccessRole, LegendItem, LegendColor, CustomFieldDef, CustomFieldOption, OptionValueType } from '../types'
 import { OPTION_VALUE_TYPES, getOptionUnit } from '../types'
 import { LEGEND_COLOR_STYLES } from '../components/schedule/Legend'
+import { THEME_COLORS } from '../lib/themeColors'
 
 const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토']
 const HEX_COLOR_RE = /^#[0-9A-Fa-f]{6}$/
-
-const THEME_COLORS = [
-  // 레드
-  '#fca5a5', '#f87171', '#ef4444', '#dc2626', '#b91c1c',
-  // 오렌지
-  '#fdba74', '#fb923c', '#f97316', '#ea580c', '#c2410c',
-  // 앰버
-  '#fcd34d', '#fbbf24', '#f59e0b', '#d97706', '#b45309',
-  // 그린
-  '#86efac', '#4ade80', '#22c55e', '#16a34a', '#15803d',
-  // 에메랄드/틸
-  '#6ee7b7', '#34d399', '#10b981', '#059669', '#047857',
-  // 사이안
-  '#67e8f9', '#22d3ee', '#06b6d4', '#0891b2', '#0e7490',
-  // 블루
-  '#93c5fd', '#60a5fa', '#3b82f6', '#2563eb', '#1d4ed8',
-  // 인디고
-  '#a5b4fc', '#818cf8', '#6366f1', '#4f46e5', '#4338ca',
-  // 바이올렛/퍼플
-  '#c4b5fd', '#a78bfa', '#8b5cf6', '#7c3aed', '#6d28d9',
-  // 핑크/로즈
-  '#f9a8d4', '#f472b6', '#ec4899', '#db2777', '#be185d',
-]
 
 function makeTimeOpt(halfHours: number) {
   const h = Math.floor(halfHours / 2)
