@@ -46,7 +46,8 @@ export function RecurringModal({
   const [monthOfYear, setMonthOfYear] = useState(new Date().getMonth() + 1)
   const [selectedDays, setSelectedDays] = useState<number[]>([])
   const [selectedSlots, setSelectedSlots] = useState<string[]>([])
-  const [rangeMode, setRangeMode] = useState<'this' | 'next' | 'custom'>('this')
+  type RangeMode = 'this' | 'next' | '3months' | '6months' | '1year' | '2years' | '3years' | 'custom'
+  const [rangeMode, setRangeMode] = useState<RangeMode>('this')
   const [customStart, setCustomStart] = useState('')
   const [customEnd, setCustomEnd] = useState('')
   const [volunteerName, setVolunteerName] = useState(!isAdmin ? (profile?.name ?? '') : '')
@@ -56,20 +57,40 @@ export function RecurringModal({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // 반복 유형 변경 시 기간 옵션 초기화
+  useEffect(() => {
+    if (repeatType === 'monthly') setRangeMode('3months')
+    else if (repeatType === 'yearly') setRangeMode('1year')
+    else setRangeMode('this')
+  }, [repeatType])
+
   const { startDate, endDate } = useMemo(() => {
+    const thisStart = new Date(initialYear, initialMonth - 1, 1)
     if (rangeMode === 'this') {
-      return {
-        startDate: new Date(initialYear, initialMonth - 1, 1),
-        endDate: new Date(initialYear, initialMonth, 0),
-      }
+      return { startDate: thisStart, endDate: new Date(initialYear, initialMonth, 0) }
     }
     if (rangeMode === 'next') {
       const y = initialMonth === 12 ? initialYear + 1 : initialYear
       const m = initialMonth === 12 ? 1 : initialMonth + 1
       return { startDate: new Date(y, m - 1, 1), endDate: new Date(y, m, 0) }
     }
+    if (rangeMode === '3months') {
+      return { startDate: thisStart, endDate: new Date(initialYear, initialMonth + 2, 0) }
+    }
+    if (rangeMode === '6months') {
+      return { startDate: thisStart, endDate: new Date(initialYear, initialMonth + 5, 0) }
+    }
+    if (rangeMode === '1year') {
+      return { startDate: thisStart, endDate: new Date(initialYear, initialMonth + 11, 0) }
+    }
+    if (rangeMode === '2years') {
+      return { startDate: thisStart, endDate: new Date(initialYear, initialMonth + 23, 0) }
+    }
+    if (rangeMode === '3years') {
+      return { startDate: thisStart, endDate: new Date(initialYear, initialMonth + 35, 0) }
+    }
     return {
-      startDate: customStart ? new Date(customStart) : new Date(initialYear, initialMonth - 1, 1),
+      startDate: customStart ? new Date(customStart) : thisStart,
       endDate: customEnd ? new Date(customEnd) : new Date(initialYear, initialMonth, 0),
     }
   }, [rangeMode, customStart, customEnd, initialYear, initialMonth])
@@ -310,9 +331,21 @@ export function RecurringModal({
           <div>
             <p className="text-xs font-semibold text-[var(--color-text-secondary)] mb-1.5">기간</p>
             <div className="flex gap-2 mb-2">
-              {(['this', 'next', 'custom'] as const).map(mode => (
+              {(repeatType === 'monthly'
+                ? (['3months', '6months', '1year', 'custom'] as const)
+                : repeatType === 'yearly'
+                ? (['1year', '2years', '3years', 'custom'] as const)
+                : (['this', 'next', 'custom'] as const)
+              ).map(mode => (
                 <button key={mode} onClick={() => setRangeMode(mode)} className={tabCls(rangeMode === mode)}>
-                  {mode === 'this' ? '이번달' : mode === 'next' ? '다음달' : '직접입력'}
+                  {mode === 'this' ? '이번달'
+                    : mode === 'next' ? '다음달'
+                    : mode === '3months' ? '3개월'
+                    : mode === '6months' ? '6개월'
+                    : mode === '1year' ? '1년'
+                    : mode === '2years' ? '2년'
+                    : mode === '3years' ? '3년'
+                    : '직접입력'}
                 </button>
               ))}
             </div>
