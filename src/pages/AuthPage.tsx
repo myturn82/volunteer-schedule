@@ -7,7 +7,7 @@ import { isValidPhone } from '../lib/phone'
 
 type Tab       = 'login' | 'signup'
 type LoginStep = 'buttons' | 'email' | 'password' | 'forgot'
-type JoinStep  = 'name' | 'password' | 'confirm' | 'choice' | 'org-name'
+type JoinStep  = 'name' | 'password' | 'confirm' | 'choice' | 'org-name' | 'org-select'
 
 const COUNTABLE: JoinStep[] = ['name', 'password', 'confirm', 'org-name']
 
@@ -117,6 +117,9 @@ export function AuthPage() {
   const [orgPhone, setOrgPhone] = useState('')
   const [showJoinPw, setShowJoinPw] = useState(false)
   const [wizChoice, setWizChoice] = useState<'service' | 'join'>('service')
+  const [orgSearch, setOrgSearch] = useState('')
+  const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null)
+  const [orgOptions, setOrgOptions] = useState<{ name: string; tenantId: string }[]>([])
 
   // Forgot password
   const [forgotSent, setForgotSent] = useState(false)
@@ -155,6 +158,7 @@ export function AuthPage() {
     setSignupEmailInCard(true)
     setJoinStep('name')
     setJoinName(''); setJoinPw(''); setJoinConfirm('')
+    setOrgSearch(''); setSelectedTenantId(null); setOrgOptions([])
   }
 
   // ── handlers ──────────────────────────────────────────────────
@@ -198,6 +202,7 @@ export function AuthPage() {
     setSignupEmailInCard(false)
     setJoinStep('name')
     setJoinName(''); setJoinPw(''); setJoinConfirm('')
+    setOrgSearch(''); setSelectedTenantId(null); setOrgOptions([])
     setWizOpen(true)
   }
 
@@ -211,14 +216,26 @@ export function AuthPage() {
     setLoginPw('')
     setJoinStep('name')
     setJoinName(''); setJoinPw(''); setJoinConfirm('')
+    setOrgSearch(''); setSelectedTenantId(null); setOrgOptions([])
     setError(message)
   }
 
-  async function handleSignUpOnly() {
+  async function loadOrgList() {
+    const { data } = await supabase.from('customers').select('id, name, tenants(id)').order('name')
+    if (!data) return
+    const opts: { name: string; tenantId: string }[] = []
+    for (const c of data) {
+      const ts = (c as unknown as { tenants: { id: string }[] }).tenants ?? []
+      for (const t of ts) opts.push({ name: c.name, tenantId: t.id })
+    }
+    setOrgOptions(opts)
+  }
+
+  async function handleSignUpOnly(tenantId = '') {
     setLoading(true); setError(null)
     // signUp 도중 App.tsx가 PendingPage로 전환되기 전에 먼저 세팅
     localStorage.setItem('vs_pending_mode', 'join-org')
-    const err = await signUp(joinEmail.trim(), joinPw, joinName.trim(), 'volunteer', '')
+    const err = await signUp(joinEmail.trim(), joinPw, joinName.trim(), 'volunteer', tenantId)
     setLoading(false)
     if (err) {
       localStorage.removeItem('vs_pending_mode')
@@ -263,7 +280,7 @@ export function AuthPage() {
   }
 
   // ── wizard dots ───────────────────────────────────────────────
-  const stepIdx = (joinStep === 'choice' || joinStep === 'org-name')
+  const stepIdx = (joinStep === 'choice' || joinStep === 'org-name' || joinStep === 'org-select')
     ? COUNTABLE.length - 1
     : COUNTABLE.indexOf(joinStep)
 
@@ -605,11 +622,57 @@ export function AuthPage() {
                     disabled={loading}
                     onClick={() => {
                       if (wizChoice === 'service') { setJoinStep('org-name'); setError(null) }
-                      else handleSignUpOnly()
+                      else { setJoinStep('org-select'); setError(null); loadOrgList() }
                     }}>
                     {loading ? '처리 중...' : <>계속하기 <IArrow /></>}
                   </button>
                   <button className="af-back-link" onClick={() => { setJoinStep('confirm'); setError(null) }}><IBack /> 뒤로</button>
+                </>
+              )}
+
+              {/* org-select */}
+              {joinStep === 'org-select' && (
+                <>
+                  <h3 className="af-title sm">어느 조직에 가입할까요?</h3>
+                  <p className="af-sub">가입 후 관리자 승인이 필요할 수 있어요.</p>
+                  <div className="af-field">
+                    <label className="af-label">조직 검색</label>
+                    <div className="af-input-wrap">
+                      <input className="af-input" type="text" value={orgSearch} autoFocus
+                        onChange={e => { setOrgSearch(e.target.value); setSelectedTenantId(null) }}
+                        placeholder="조직 이름을 검색하세요" />
+                    </div>
+                  </div>
+                  <div style={{ maxHeight: 180, overflowY: 'auto', marginTop: 4, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {orgOptions
+                      .filter(o => !orgSearch || o.name.toLowerCase().includes(orgSearch.toLowerCase()))
+                      .map(o => (
+                        <button key={o.tenantId}
+                          className={`af-choice${selectedTenantId === o.tenantId ? ' on' : ''}`}
+                          onClick={() => { setSelectedTenantId(o.tenantId); setError(null) }}>
+                          <span className="af-choice-body"><span className="af-choice-t">{o.name}</span></span>
+                          <span className="af-choice-radio"><ICheck /></span>
+                        </button>
+                      ))}
+                    {orgOptions.filter(o => !orgSearch || o.name.toLowerCase().includes(orgSearch.toLowerCase())).length === 0 && (
+                      <p style={{ textAlign: 'center', color: 'var(--ink-400)', fontSize: 13, padding: '12px 0' }}>
+                        {orgSearch ? '검색 결과가 없습니다.' : '등록된 조직이 없습니다.'}
+                      </p>
+                    )}
+                  </div>
+                  {error && <div className="af-err">{error}</div>}
+                  <button className="af-btn af-btn-primary"
+                    style={{ marginTop: 8, opacity: (loading || !selectedTenantId) ? 0.6 : 1 }}
+                    disabled={loading || !selectedTenantId}
+                    onClick={() => {
+                      if (!selectedTenantId) { setError('조직을 선택해 주세요.'); return }
+                      handleSignUpOnly(selectedTenantId)
+                    }}>
+                    {loading ? '처리 중...' : <>가입 신청하기 <IArrow /></>}
+                  </button>
+                  <button className="af-back-link" onClick={() => { setJoinStep('choice'); setError(null) }}>
+                    <IBack /> 뒤로
+                  </button>
                 </>
               )}
 
