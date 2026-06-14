@@ -9,12 +9,13 @@ export function useSlotHighlights(tenantId: string) {
     const pad = (n: number) => String(n).padStart(2, '0')
     const from = `${year}-${pad(month)}-01`
     const to   = `${year}-${pad(month)}-${new Date(year, month, 0).getDate()}`
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('slot_highlights')
       .select('date, time_slot')
       .eq('tenant_id', tenantId)
       .gte('date', from)
       .lte('date', to)
+    if (error) console.error('[slot_highlights] load error:', error)
     setHighlights(data ?? [])
   }
 
@@ -30,11 +31,12 @@ export function useSlotHighlights(tenantId: string) {
         .eq('time_slot', timeSlot)
       setHighlights(prev => prev.filter(h => !(h.date === date && h.time_slot === timeSlot)))
     } else {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('slot_highlights')
         .insert({ tenant_id: tenantId, date, time_slot: timeSlot })
         .select('date, time_slot')
         .single()
+      if (error) console.error('[slot_highlights] insert error:', error)
       if (data) setHighlights(prev => [...prev, data])
     }
   }

@@ -232,6 +232,9 @@ export function TimeSlotCell({ cellState, timeSlot, colType, onClick, highlightN
         className={`relative w-full h-full ${cellMinH} flex flex-col items-center justify-center transition-all duration-150 active:scale-[0.98] group`}
         style={{ background: hasAssignments ? tint.bg : 'var(--color-surface)' }}
       >
+        {highlighted && !hasAssignments && (
+          <span className="absolute inset-[2px] rounded pointer-events-none" style={{ border: '2px dashed var(--color-brand-primary)' }} />
+        )}
         {onIndicatorBarClick ? (
           <div role="button" tabIndex={0} onClick={e => { e.stopPropagation(); onIndicatorBarClick() }} onKeyDown={e => e.key === 'Enter' && (e.stopPropagation(), onIndicatorBarClick())}
             className={`absolute left-0 top-0 bottom-0 z-10 flex items-center justify-center cursor-pointer transition-all duration-150
@@ -245,7 +248,9 @@ export function TimeSlotCell({ cellState, timeSlot, colType, onClick, highlightN
               <NameChips assignments={roleAssignments} highlightName={highlightName} tintBg={tint.bg} tintInk={tint.ink} teamLeaderUserIds={teamLeaderUserIds} withdrawnUserIds={withdrawnUserIds} />
               {isFull && <span className="text-[7px] sm:text-[9px] font-semibold mt-0.5 px-1.5 py-0.5 rounded-full" style={{ background: 'oklch(0.97 0.02 25)', color: 'oklch(0.55 0.16 25)' }}>마감</span>}
             </>
-          : canInteract && <EmptyOrLockHint isLocked={isLocked} />
+          : highlighted && !isLocked
+            ? <span className="text-[10px] sm:text-xs" style={{ color: 'var(--color-brand-primary)' }}>🔔</span>
+            : canInteract && <EmptyOrLockHint isLocked={isLocked} />
         }
       </button>
     )

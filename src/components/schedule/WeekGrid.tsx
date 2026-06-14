@@ -188,12 +188,17 @@ export function WeekGrid({
                 // ── Split mode: role sub-columns ──
                 if (activeRoles.length > 0) {
                   const hasBar = displayCs.assignments.some(a => a.role_id && indicatorBarRoleIds.has(a.role_id))
+                  const hlKey = `${y}-${pad2(m)}-${pad2(day)}|${slot}`
+                  const isSlotHighlighted = !displayCs.assignments.length && (highlightedSlots?.has(hlKey) ?? false)
                   return (
                     <div
                       key={di}
                       className="relative border-l border-[var(--color-border)] grid"
                       style={{ gridTemplateColumns: `repeat(${activeRoles.length}, 1fr)` }}
                     >
+                      {isSlotHighlighted && (
+                        <span className="absolute inset-[2px] rounded pointer-events-none z-20" style={{ border: '2px dashed var(--color-brand-primary)' }} />
+                      )}
                       {hasBar && (
                         <span className="absolute left-0 top-0 bottom-0 w-[3px] z-10 pointer-events-none" style={{ background: INDICATOR_BAR_COLOR }} />
                       )}

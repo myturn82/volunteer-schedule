@@ -431,6 +431,7 @@ export function ScheduleGrid({
                                     ? () => onCellClick({ year, month, day, timeSlot: slot, memberType: 'member', roleId: memberRoleId! })
                                     : undefined}
                                   withdrawnUserIds={withdrawnUserIds}
+                                  highlighted={highlightedSlots?.has(`${year}-${pad2(month)}-${pad2(day)}|${slot}`) ?? false}
                                 />
                               </td>
                             ))}
