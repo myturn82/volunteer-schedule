@@ -197,7 +197,7 @@ export function WeekGrid({
                       style={{ gridTemplateColumns: `repeat(${activeRoles.length}, 1fr)` }}
                     >
                       {isSlotHighlighted && (
-                        <span className="absolute inset-[2px] rounded pointer-events-none z-20" style={{ border: '2px dashed oklch(0.72 0.16 80)' }} />
+                        <span className="absolute inset-[2px] rounded pointer-events-none z-20" style={{ border: '1px dashed oklch(0.72 0.16 80)' }} />
                       )}
                       {hasBar && (
                         <span className="absolute left-0 top-0 bottom-0 w-[3px] z-10 pointer-events-none" style={{ background: INDICATOR_BAR_COLOR }} />
