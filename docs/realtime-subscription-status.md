@@ -8,6 +8,7 @@
 |--------|--------|--------|--------|---------|------|
 | `assignments` | ✅ | ✅ | ✅ | `useSchedule`, `useRealtime` | publication 적용, DEFAULT replica identity |
 | `slot_highlights` | ✅ | ➖ | ✅ | `useSlotHighlights` | publication 적용, **REPLICA IDENTITY FULL** |
+| `date_overrides` | ✅ | ✅ | ✅ | `useSchedule` | publication 적용, **REPLICA IDENTITY FULL** |
 
 ## 구독 미적용 (변경 시 새로고침 필요)
 
@@ -16,7 +17,7 @@
 | `tenant_members` | `useAdmin`, `useProfiles`, `useDashboard` | 낮음 | 낮음 |
 | `slot_settings` | `useSchedule`, `useDashboard` | 낮음 | 낮음 |
 | `schedule_rules` | `useSchedule`, `useAdmin` | 낮음 | 낮음 |
-| `date_overrides` | `useSchedule`, `useAdmin` | 중간 | 중간 |
+| `date_overrides` | `useAdmin` (설정 UI) | 낮음 | 낮음 (구독으로 이전) |
 | `tenant_roles` | `useTenantRoles` | 낮음 | 낮음 |
 | `tenants` | `useAdmin` | 낮음 | 낮음 |
 | `customers` | `useAdmin`, `useCustomerAdmin` | 낮음 | 낮음 |

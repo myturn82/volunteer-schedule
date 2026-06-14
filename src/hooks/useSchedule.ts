@@ -98,6 +98,40 @@ export function useSchedule(tenantId: string, year: number, month: number): Sche
       .on('postgres_changes', {
         event: 'DELETE', schema: 'public', table: 'assignments',
       }, payload => setAssignments(prev => prev.filter(a => a.id !== payload.old.id)))
+      // ── date_overrides 실시간 구독 (잠금·휴관 즉시 반영) ──────────────────
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'date_overrides',
+        filter: `tenant_id=eq.${tenantId}`,
+      }, payload => {
+        const row = payload.new as DateOverride
+        const pad = (n: number) => String(n).padStart(2, '0')
+        const from = `${year}-${pad(month)}-01`
+        const to   = `${year}-${pad(month)}-${new Date(year, month, 0).getDate()}`
+        if (row.date < from || row.date > to) return
+        setDateOverrides(prev => prev.some(d => d.id === row.id) ? prev : [...prev, row])
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE', schema: 'public', table: 'date_overrides',
+        filter: `tenant_id=eq.${tenantId}`,
+      }, payload => {
+        const row = payload.new as DateOverride
+        const pad = (n: number) => String(n).padStart(2, '0')
+        const from = `${year}-${pad(month)}-01`
+        const to   = `${year}-${pad(month)}-${new Date(year, month, 0).getDate()}`
+        if (row.date < from || row.date > to) return
+        setDateOverrides(prev =>
+          prev.some(d => d.id === row.id)
+            ? prev.map(d => d.id === row.id ? row : d)
+            : [...prev, row]
+        )
+      })
+      .on('postgres_changes', {
+        event: 'DELETE', schema: 'public', table: 'date_overrides',
+        filter: `tenant_id=eq.${tenantId}`,
+        // REPLICA IDENTITY FULL 설정으로 DELETE filter 가능
+      }, payload => {
+        setDateOverrides(prev => prev.filter(d => d.id !== (payload.old as { id: string }).id))
+      })
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
