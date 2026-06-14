@@ -330,10 +330,11 @@ export function TimeSlotCell({ cellState, timeSlot, colType, onClick, highlightN
         className={`relative w-full h-full ${cellMinH} flex flex-col items-center justify-center transition-all duration-150 active:scale-[0.98] group`}
         style={{
           background: hasAssign || hasIndicatorBar ? cellTint.bg : highlighted && !hasAssign ? hlBg : 'var(--color-surface)',
-          outline: highlighted && !hasAssign ? '2px dashed oklch(0.72 0.16 80)' : undefined,
-          outlineOffset: '-2px',
         }}
       >
+        {highlighted && !hasAssign && (
+          <span className="absolute inset-[2px] rounded pointer-events-none" style={{ border: '2px dashed oklch(0.72 0.16 80)' }} />
+        )}
         {onIndicatorBarClick ? (
           <div role="button" tabIndex={0} onClick={e => { e.stopPropagation(); onIndicatorBarClick() }} onKeyDown={e => e.key === 'Enter' && (e.stopPropagation(), onIndicatorBarClick())}
             className={`absolute left-0 top-0 bottom-0 z-10 flex items-center justify-center cursor-pointer transition-all duration-150
