@@ -701,7 +701,7 @@ export function SchedulePage() {
             member_type: memberType,
             time_sub: timeSub || undefined,
             color: color || undefined,
-            user_id: userId ?? profile!.id,
+            user_id: userId ?? (tenantMode === '비회원' ? null : profile!.id),
             role_id: roleId ?? null,
             customer_name: customerName ?? null,
             customer_phone: customerPhone ?? null,

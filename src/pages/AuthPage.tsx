@@ -191,6 +191,17 @@ export function AuthPage() {
     setWizOpen(true)
   }
 
+  // 이미 가입된 이메일 오류 시 wizard를 닫고 로그인 탭으로 전환
+  function redirectToLoginTab(message: string) {
+    signupInProgress.current = false
+    setWizOpen(false)
+    setTab('login')
+    setLoginStep('email')
+    setLoginEmail(joinEmail.trim())
+    setJoinStep('name')
+    setError(message)
+  }
+
   async function handleSignUpOnly() {
     setLoading(true); setError(null)
     // signUp 도중 App.tsx가 PendingPage로 전환되기 전에 먼저 세팅
@@ -199,6 +210,7 @@ export function AuthPage() {
     setLoading(false)
     if (err) {
       localStorage.removeItem('vs_pending_mode')
+      if (err.includes('이미 가입된')) { redirectToLoginTab(err); return }
       setError(err); return
     }
     window.location.href = '/'
@@ -209,7 +221,11 @@ export function AuthPage() {
     if (!isValidPhone(orgPhone)) { setError('올바른 전화번호를 입력해 주세요. (예: 010-1234-5678)'); return }
     setLoading(true); setError(null)
     const err = await signUp(joinEmail.trim(), joinPw, joinName.trim(), 'volunteer', '')
-    if (err) { setLoading(false); setError(err); return }
+    if (err) {
+      setLoading(false)
+      if (err.includes('이미 가입된')) { redirectToLoginTab(err); return }
+      setError(err); return
+    }
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setLoading(false); setError('인증 오류가 발생했습니다.'); return }
     const { error: custErr } = await supabase

@@ -410,8 +410,8 @@ export function SlotEditModal({
                             : a.member_name}
                           {a.time_sub && <span className="text-xs text-[var(--color-text-muted)] font-normal">({formatTimeSub(a.time_sub)})</span>}
                           {!isFreeform && isAdmin && !isSplitMode && (
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${a.member_type === '50plus' ? 'bg-orange-100 text-orange-600' : 'bg-blue-50 text-blue-500'}`}>
-                              {a.member_type === '50plus' ? '50+' : '봉사'}
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold truncate max-w-[72px] ${a.member_type === '50plus' ? 'bg-orange-100 text-orange-600' : 'bg-blue-50 text-blue-500'}`}>
+                              {a.member_type === '50plus' ? typeLabels['50plus'] : typeLabels.member}
                             </span>
                           )}
                           {a.is_locked && <span title="관리자에 의해 고정됨"><LockIcon size={12} className="inline -mt-0.5" /></span>}

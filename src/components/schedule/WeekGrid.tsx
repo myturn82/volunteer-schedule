@@ -266,16 +266,20 @@ export function WeekGrid({
                 const visibleAssigns = displayCs.assignments.filter(
                   a => a.member_type !== 'admin_note' && !(a.user_id && teamLeaderUserIds?.has(a.user_id)) && !indicatorBarRoleIds.has(a.role_id ?? '')
                 )
-                const tint = isMoon
+                const baseTint = isMoon
                   ? { bg: 'var(--tint-moon)', ink: 'var(--tint-moon-ink)' }
                   : { bg: 'var(--tint-sun)',  ink: 'var(--tint-sun-ink)' }
+                const plusTint = { bg: 'var(--tint-plus)', ink: 'var(--tint-plus-ink)' }
+                // 월달력 plus 컬럼 색상 통일: 50plus만 있으면 셀도 plus 색
+                const isAllPlus = visibleAssigns.length > 0 && visibleAssigns.every(a => a.member_type === '50plus')
+                const cellTint = isAllPlus ? plusTint : baseTint
 
                 return (
                   <button
                     key={di}
                     onClick={() => onCellClick({ year: y, month: m, day, timeSlot: slot, memberType: 'member' })}
                     className={`relative border-l border-[var(--color-border)] flex flex-col items-center justify-center gap-0.5 p-1 group transition-colors ${visibleAssigns.length > 0 ? 'hover:brightness-95' : 'hover:bg-[var(--color-surface-hover)]'}`}
-                    style={{ background: visibleAssigns.length > 0 ? tint.bg : undefined }}
+                    style={{ background: visibleAssigns.length > 0 ? cellTint.bg : undefined }}
                   >
                     {hasBar && (
                       <span className="absolute left-0 top-0 bottom-0 w-[3px]" style={{ background: INDICATOR_BAR_COLOR }} />
@@ -290,6 +294,7 @@ export function WeekGrid({
                           (a.customer_phone && a.customer_phone.includes(_hq)) ||
                           (a.extra_data && Object.values(a.extra_data).some(v => String(v ?? '').toLowerCase().includes(_hq)))
                         ))
+                        const chipTint = a.member_type === '50plus' ? plusTint : baseTint
                         const timeLbl = a.time_sub ? formatTimeSub(a.time_sub) : null
                         const isWithdrawn = !!(a.user_id && withdrawnUserIds?.has(a.user_id)) || a.account_deleted
                         return (
@@ -300,7 +305,7 @@ export function WeekGrid({
                               ? { background: '#fef08a', color: '#92400e' }
                               : isWithdrawn
                                 ? { background: 'oklch(0.97 0.02 25)', color: 'oklch(0.55 0.16 25)', opacity: 0.85 }
-                                : { background: tint.bg, color: tint.ink }}
+                                : { background: chipTint.bg, color: chipTint.ink }}
                           >
                             <span className="flex items-center justify-center gap-0.5 w-full">
                               <span className="truncate min-w-0" style={isWithdrawn ? { textDecoration: 'line-through' } : undefined}>{a.member_name}</span>
