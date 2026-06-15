@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 
 type HighlightRow = { id: string; date: string; time_slot: string }
+export type HighlightSnapshotRow = { date: string; time_slot: string; note: string | null }
 
 export function useSlotHighlights(tenantId: string) {
   const [highlights, setHighlights] = useState<HighlightRow[]>([])
@@ -74,11 +75,48 @@ export function useSlotHighlights(tenantId: string) {
     }
   }
 
+  // 초기화 대상 날짜의 하이라이트를 삭제하고, 복구용으로 삭제된 항목을 반환
+  async function clearAndSnapshotHighlights(dates: string[]): Promise<HighlightSnapshotRow[]> {
+    if (!tenantId || dates.length === 0) return []
+    const { data, error: selErr } = await supabase
+      .from('slot_highlights')
+      .select('date, time_slot, note')
+      .eq('tenant_id', tenantId)
+      .in('date', dates)
+    if (selErr) {
+      console.error('[slot_highlights] snapshot select error:', selErr)
+      return []
+    }
+    const rows = data ?? []
+    if (rows.length === 0) return []
+
+    setHighlights(prev => prev.filter(h => !dates.includes(h.date)))
+    const { error: delErr } = await supabase
+      .from('slot_highlights')
+      .delete()
+      .eq('tenant_id', tenantId)
+      .in('date', dates)
+    if (delErr) console.error('[slot_highlights] clear error:', delErr)
+    return rows
+  }
+
+  // 스냅샷에 보관된 하이라이트를 복원
+  async function restoreHighlights(rows: HighlightSnapshotRow[]) {
+    if (!tenantId || rows.length === 0) return
+    const { error } = await supabase
+      .from('slot_highlights')
+      .upsert(
+        rows.map(r => ({ tenant_id: tenantId, date: r.date, time_slot: r.time_slot, note: r.note })),
+        { onConflict: 'tenant_id,date,time_slot' }
+      )
+    if (error) console.error('[slot_highlights] restore error:', error)
+  }
+
   // key 형식: "YYYY-MM-DD|timeSlot"
   const highlightSet = useMemo(
     () => new Set(highlights.map(h => `${h.date}|${h.time_slot}`)),
     [highlights]
   )
 
-  return { highlightSet, loadHighlights, toggleHighlight }
+  return { highlightSet, loadHighlights, toggleHighlight, clearAndSnapshotHighlights, restoreHighlights }
 }

@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase'
 import type { Assignment } from '../types'
+import type { HighlightSnapshotRow } from './useSlotHighlights'
 
 export type SnapshotScope = 'month' | 'week' | 'day'
 
@@ -15,7 +16,7 @@ export interface SnapshotInfo {
 export function useAssignmentSnapshot(tenantId: string) {
   const saveSnapshot = async (
     toDelete: Assignment[],
-    params: { year: number; month: number; scope: SnapshotScope; days?: number[] }
+    params: { year: number; month: number; scope: SnapshotScope; days?: number[]; highlights?: HighlightSnapshotRow[] }
   ): Promise<{ snapshotId: string | null; error: string | null }> => {
     if (!tenantId || !toDelete.length) return { snapshotId: null, error: null }
 
@@ -37,6 +38,7 @@ export function useAssignmentSnapshot(tenantId: string) {
         days: params.days ?? null,
         snapshot_data: toDelete,
         deleted_count: toDelete.length,
+        highlights_data: params.highlights ?? [],
       })
       .select('id')
       .single()
@@ -47,7 +49,7 @@ export function useAssignmentSnapshot(tenantId: string) {
 
   const restoreSnapshot = async (
     snapshotId: string
-  ): Promise<{ restoredCount: number; error: string | null }> => {
+  ): Promise<{ restoredCount: number; highlights: HighlightSnapshotRow[]; error: string | null }> => {
     const { data: snap, error: fetchErr } = await supabase
       .from('assignment_snapshots')
       .select('*')
@@ -55,10 +57,11 @@ export function useAssignmentSnapshot(tenantId: string) {
       .single()
 
     if (fetchErr || !snap) {
-      return { restoredCount: 0, error: fetchErr?.message ?? '스냅샷을 찾을 수 없습니다' }
+      return { restoredCount: 0, highlights: [], error: fetchErr?.message ?? '스냅샷을 찾을 수 없습니다' }
     }
 
     const rows = snap.snapshot_data as Assignment[]
+    const highlights = (snap.highlights_data ?? []) as HighlightSnapshotRow[]
     const { year, month, scope, days } = snap as {
       year: number; month: number; scope: SnapshotScope; days: number[] | null
     }
@@ -82,7 +85,7 @@ export function useAssignmentSnapshot(tenantId: string) {
       delQuery = delQuery.in('day', days)
     }
     const { error: delErr } = await delQuery
-    if (delErr) return { restoredCount: 0, error: delErr.message }
+    if (delErr) return { restoredCount: 0, highlights: [], error: delErr.message }
 
     // 인접 월 삭제 (주 뷰에서 월 경계를 넘는 경우)
     for (const ym of extraMonthKeys) {
@@ -96,7 +99,7 @@ export function useAssignmentSnapshot(tenantId: string) {
         .eq('month', em)
         .eq('is_locked', false)
         .in('day', extraDays)
-      if (adjErr) return { restoredCount: 0, error: adjErr.message }
+      if (adjErr) return { restoredCount: 0, highlights: [], error: adjErr.message }
     }
 
     // 스냅샷 데이터 재삽입 (id·created_at 제외하고 새 레코드로)
@@ -105,12 +108,12 @@ export function useAssignmentSnapshot(tenantId: string) {
       tenant_id: tenantId,
     }))
     const { error: insErr } = await supabase.from('assignments').insert(toInsert)
-    if (insErr) return { restoredCount: 0, error: insErr.message }
+    if (insErr) return { restoredCount: 0, highlights: [], error: insErr.message }
 
     // 복구 완료 후 스냅샷 삭제
     await supabase.from('assignment_snapshots').delete().eq('id', snapshotId)
 
-    return { restoredCount: rows.length, error: null }
+    return { restoredCount: rows.length, highlights, error: null }
   }
 
   return { saveSnapshot, restoreSnapshot }

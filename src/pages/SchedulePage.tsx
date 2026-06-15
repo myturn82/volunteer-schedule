@@ -84,7 +84,7 @@ export function SchedulePage() {
     rawMode === '직접입력' ? '비회원' :
     rawMode as TenantMode
 
-  const { highlightSet: highlightedSlots, loadHighlights, toggleHighlight } = useSlotHighlights(tenant?.id ?? '')
+  const { highlightSet: highlightedSlots, loadHighlights, toggleHighlight, clearAndSnapshotHighlights, restoreHighlights } = useSlotHighlights(tenant?.id ?? '')
   useEffect(() => { if (tenant?.id) loadHighlights(year, month) }, [tenant?.id, year, month]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const selRange = useMemo(() => {
@@ -835,10 +835,22 @@ export function SchedulePage() {
               snapshotDays = weekDays.filter(d => d.getFullYear() === year && d.getMonth() + 1 === month).map(d => d.getDate())
             }
 
+            // 빈 슬롯 알림(하이라이트)도 함께 초기화 → 복구용으로 보관
+            let highlightDates: string[]
+            if (viewType === 'month') {
+              const daysInMonth = new Date(year, month, 0).getDate()
+              highlightDates = Array.from({ length: daysInMonth }, (_, i) => `${year}-${pad2(month)}-${pad2(i + 1)}`)
+            } else if (viewType === 'day') {
+              highlightDates = [`${year}-${pad2(month)}-${pad2(day)}`]
+            } else {
+              highlightDates = weekDays.map(d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`)
+            }
+            const clearedHighlights = await clearAndSnapshotHighlights(highlightDates)
+
             let snapshotId: string | null = null
             if (toDelete.length > 0) {
               const { snapshotId: sid } = await saveSnapshot(toDelete, {
-                year, month, scope: viewType as SnapshotScope, days: snapshotDays,
+                year, month, scope: viewType as SnapshotScope, days: snapshotDays, highlights: clearedHighlights,
               })
               snapshotId = sid
             }
@@ -986,10 +998,14 @@ export function SchedulePage() {
           onCancel={() => setShowRestoreConfirm(false)}
           onConfirm={async () => {
             setShowRestoreConfirm(false)
-            const { restoredCount, error } = await restoreSnapshot(lastSnapshot.id)
+            const { restoredCount, highlights, error } = await restoreSnapshot(lastSnapshot.id)
             if (error) {
               alert(`복구 실패: ${error}`)
             } else {
+              if (highlights.length > 0) {
+                await restoreHighlights(highlights)
+                await loadHighlights(year, month)
+              }
               setLastSnapshot(null)
               setDirectRegMsg(`${restoredCount}건 스케줄이 복구됐습니다.`)
               setTimeout(() => setDirectRegMsg(null), 3000)

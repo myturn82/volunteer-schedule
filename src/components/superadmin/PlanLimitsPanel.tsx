@@ -58,6 +58,7 @@ function PlanLimitsTable({ planLimits, updatePlanLimit }: {
 
   return (
     <div className="mt-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[18px] overflow-hidden shadow-[var(--shadow-sm)]">
+      <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
           <tr className="bg-[var(--color-surface-secondary)] border-b border-[var(--color-border)]">
@@ -104,6 +105,7 @@ function PlanLimitsTable({ planLimits, updatePlanLimit }: {
           ))}
         </tbody>
       </table>
+      </div>
       {message && (
         <p className={`px-4 py-2 text-xs border-t border-[var(--color-border)] ${message.startsWith('오류') ? 'text-red-500' : 'text-green-600'}`}>
           {message}
